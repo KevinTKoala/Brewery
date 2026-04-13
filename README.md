@@ -28,6 +28,12 @@ We believe every coffee lover deserves easy access to quality coffee information
 - Get advice from experienced baristas and home brewers
 - Topics range from beginner tips to advanced techniques
 
+### 🔐 User Authentication
+- Sign up and login functionality (no database yet to store)
+- Persistent sessions using localStorage (demo)
+- Protected routes (homepage requires authentication)
+- User greeting in navigation when logged in
+
 ### 🛒 Coming Soon
 - Coffee bean marketplace with direct roastery purchases
 - Equipment reviews and recommendations
@@ -103,19 +109,22 @@ We welcome contributions from coffee enthusiasts of all levels! Here's how you c
 brewery/
 ├── src/
 │   ├── app/              # Next.js App Router pages
+│   │   ├── login/        # Login page
+│   │   ├── signup/       # Signup page
 │   │   ├── roasteries/   # Roastery listing and detail pages
 │   │   ├── cafes/        # Cafe listing and detail pages
 │   │   └── discussions/  # Discussion forum
 │   ├── components/       # Reusable UI components
-│   ├── lib/             # Utility functions and mock data
+│   ├── lib/             # Utility functions, mock data, and auth context
 │   └── types/           # TypeScript type definitions
 ├── data-contribution.json # Community contribution data
+├── screenshots/          # App screenshots
 └── README.md
 ```
 
 ## 🗺️ Roadmap
 
-- [ ] User authentication system
+- [ ] User authentication system (demo implemented, needs real database)
 - [ ] Coffee bean marketplace
 - [ ] Equipment reviews and ratings
 - [ ] Brewing method guides

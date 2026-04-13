@@ -1,11 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { Coffee, Search, MessageSquare, Store, MapPin, User } from "lucide-react"
+import { Coffee, Search, MessageSquare, Store, MapPin, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useAuth } from "@/lib/auth-context"
 
 export function Navigation() {
+  const { user, logout } = useAuth()
+
   return (
     <nav className="border-b bg-white sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -39,9 +42,20 @@ export function Navigation() {
                 className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-8 w-48"
               />
             </div>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-            </Button>
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <span className="hidden sm:block text-sm text-gray-600">Hi, {user.name}</span>
+                <Button variant="ghost" size="icon" onClick={logout} title="Logout">
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
+            ) : (
+              <Link href="/login">
+                <Button variant="ghost" size="icon" title="Login">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>

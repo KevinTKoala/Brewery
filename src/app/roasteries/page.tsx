@@ -37,8 +37,8 @@ export default function RoasteriesPage() {
             Discover and review the best coffee roasters in your area
           </p>
 
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input
                 type="text"
@@ -48,7 +48,7 @@ export default function RoasteriesPage() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <Button
                 variant={!selectedSpecialty ? "default" : "outline"}
                 onClick={() => setSelectedSpecialty(null)}
