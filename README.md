@@ -1,0 +1,146 @@
+# ☕ Brewery
+
+**Your centralized hub for discovering coffee roasteries, cafes, and connecting with fellow coffee enthusiasts.**
+
+Tired of hunting across Google, roastery websites, and Shopee to find good coffee? Brewery brings everything together in one place - like Shopee, but dedicated entirely to coffee.
+
+## 🎯 Mission
+
+We believe every coffee lover deserves easy access to quality coffee information. Whether you're a home brewer looking for the perfect beans, a cafe hopper seeking your next favorite spot, or a coffee enthusiast wanting to share knowledge - Brewery is for you.
+
+## ✨ Features
+
+### 🔍 Roastery Discovery
+- Browse and discover local and international coffee roasteries
+- Read detailed profiles with specialties, processing methods, and flavor notes
+- Community-driven reviews and ratings
+- Filter by specialty (Single Origin, Sustainable, Fair Trade, etc.)
+
+### 🏪 Cafe Recommendations
+- Find the best cafes near you with honest community reviews
+- View cafe specialties, hours, and contact information
+- Filter by atmosphere, brewing methods, and more
+- Contribute your own cafe experiences
+
+### 💬 Community Discussions
+- Join vibrant discussions about brewing methods, bean origins, and equipment
+- Share knowledge with fellow coffee enthusiasts
+- Get advice from experienced baristas and home brewers
+- Topics range from beginner tips to advanced techniques
+
+### 🛒 Coming Soon
+- Coffee bean marketplace with direct roastery purchases
+- Equipment reviews and recommendations
+- Brewing method guides and tutorials
+- User profiles and follow system
+
+## 🚀 Tech Stack
+
+- **Next.js 16.2.3** - React framework with App Router
+- **React 19.2.5** - UI library
+- **TypeScript 6.0.2** - Type safety
+- **TailwindCSS 3** - Utility-first CSS framework
+- **shadcn/ui** - Beautiful, accessible UI components
+- **Lucide React** - Icon library
+
+## 📸 Screenshots
+
+![Homepage](screenshots/homepage.png)
+![Roasteries](screenshots/roasteries.png)
+![Coffee Cafes](screenshots/coffee-cafes.png)
+![Discussions](screenshots/discussions.png)
+
+## 🏃 Getting Started
+
+### Prerequisites
+- Node.js 18+ installed
+- npm or yarn package manager
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/brewery.git
+cd brewery
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+## 🤝 Contributing
+
+We welcome contributions from coffee enthusiasts of all levels! Here's how you can help:
+
+### Easy Contributions (Great for Beginners!)
+- **Add your favorite roastery or cafe** - Simply edit `data-contribution.json` with the details and submit a PR
+- **Fix typos** - Spot a spelling mistake? Fix it!
+- **Improve documentation** - Help make our README clearer
+
+### Code Contributions
+- **Build new features** - Check our roadmap for planned features
+- **Fix bugs** - Help squash issues in the issue tracker
+- **Improve UI/UX** - Make the app more beautiful and user-friendly
+- **Add tests** - Help us ensure code quality
+
+### How to Contribute
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+**Want to see your favorite roastery on the site? Submit a PR adding it to `data-contribution.json`!**
+
+## 📋 Project Structure
+
+```
+brewery/
+├── src/
+│   ├── app/              # Next.js App Router pages
+│   │   ├── roasteries/   # Roastery listing and detail pages
+│   │   ├── cafes/        # Cafe listing and detail pages
+│   │   └── discussions/  # Discussion forum
+│   ├── components/       # Reusable UI components
+│   ├── lib/             # Utility functions and mock data
+│   └── types/           # TypeScript type definitions
+├── data-contribution.json # Community contribution data
+└── README.md
+```
+
+## 🗺️ Roadmap
+
+- [ ] User authentication system
+- [ ] Coffee bean marketplace
+- [ ] Equipment reviews and ratings
+- [ ] Brewing method guides
+- [ ] Advanced search and filters
+- [ ] Mobile app
+- [ ] Internationalization support
+
+## 🌟 Why Contribute?
+
+- **Impact** - Help thousands of coffee lovers discover great coffee
+- **Learn** - Gain experience with modern web technologies
+- **Community** - Join a passionate community of coffee enthusiasts
+- **Portfolio** - Build your open source contribution history
+- **Fun** - Work on something you're passionate about!
+
+## 📝 License
+
+ISC
+
+## 📧 Contact
+
+Have questions or suggestions? Open an issue or reach out to us.
+
+Discord @arrz.ryn
+
+---
+
+**Built with ❤️ by coffee enthusiasts, for coffee enthusiasts**

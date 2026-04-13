@@ -1,0 +1,5 @@
+{
+  "roasteries": [],
+  "cafes": [],
+  "instructions": "Add your favorite roasteries or cafes here following the schema defined in src/types/index.ts"
+}
