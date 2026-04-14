@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, MessageSquare, TrendingUp, Clock, Plus } from "lucide-react"
+import { Search, MessageSquare, TrendingUp, Clock, Plus, ChevronDown, SlidersHorizontal, Edit2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,10 +9,14 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { Discussion } from "@/types"
+import { useRouter } from "next/navigation"
 
 export default function DiscussionsPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<"newest" | "most_replies" | "most_likes">("newest")
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [loading, setLoading] = useState(true)
   const [showDiscussionForm, setShowDiscussionForm] = useState(false)
@@ -92,21 +96,64 @@ export default function DiscussionsPage() {
     setSubmitting(false)
   }
 
+  const handleDeleteDiscussion = async (discussionId: string, authorId: string) => {
+    if (!user || user.id !== authorId) return
+
+    if (!confirm('Are you sure you want to delete this discussion? This action cannot be undone.')) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('discussions')
+      .delete()
+      .eq('id', discussionId)
+      .eq('author_id', user.id)
+
+    if (error) {
+      alert('Failed to delete discussion: ' + error.message)
+    } else {
+      fetchDiscussions()
+    }
+  }
+
   const categories = Array.from(new Set(discussions.map((d) => d.category))).sort()
+  const allTags = Array.from(new Set(discussions.flatMap((d) => d.tags))).sort()
+  const selectedTags = discussionTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
 
-  const filteredDiscussions = discussions.filter((discussion) => {
-    const matchesSearch =
-      discussion.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      discussion.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      discussion.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+  const toggleTag = (tag: string) => {
+    const currentTags = discussionTags.split(',').map(t => t.trim()).filter(t => t.length > 0)
+    if (currentTags.includes(tag)) {
+      setDiscussionTags(currentTags.filter(t => t !== tag).join(', '))
+    } else {
+      setDiscussionTags([...currentTags, tag].join(', '))
+    }
+  }
 
-    const matchesCategory =
-      !selectedCategory || discussion.category === selectedCategory
+  const filteredDiscussions = discussions
+    .filter((discussion) => {
+      const matchesSearch =
+        discussion.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        discussion.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        discussion.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        )
 
-    return matchesSearch && matchesCategory
-  })
+      const matchesCategory =
+        !selectedCategory || discussion.category === selectedCategory
+
+      return matchesSearch && matchesCategory
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "most_replies":
+          return b.replyCount - a.replyCount
+        case "most_likes":
+          return b.likes - a.likes
+        case "newest":
+        default:
+          return 0 // Keep original order (newest from database)
+      }
+    })
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
@@ -161,13 +208,28 @@ export default function DiscussionsPage() {
                     <label htmlFor="category" className="text-sm font-medium mb-2 block">
                       Category
                     </label>
-                    <Input
+                    <select
                       id="category"
                       value={discussionCategory}
                       onChange={(e) => setDiscussionCategory(e.target.value)}
-                      placeholder="e.g., Brewing, Equipment, Beans"
                       required
-                    />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                      <option value="custom">Custom...</option>
+                    </select>
+                    {discussionCategory === "custom" && (
+                      <Input
+                        className="mt-2"
+                        placeholder="Enter custom category"
+                        onChange={(e) => setDiscussionCategory(e.target.value)}
+                      />
+                    )}
                   </div>
                   <div>
                     <label htmlFor="content" className="text-sm font-medium mb-2 block">
@@ -186,13 +248,26 @@ export default function DiscussionsPage() {
                   </div>
                   <div>
                     <label htmlFor="tags" className="text-sm font-medium mb-2 block">
-                      Tags (comma-separated)
+                      Tags
                     </label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {allTags.map((tag) => (
+                        <Button
+                          key={tag}
+                          type="button"
+                          variant={selectedTags.includes(tag) ? "default" : "outline"}
+                          onClick={() => toggleTag(tag)}
+                          size="sm"
+                        >
+                          #{tag}
+                        </Button>
+                      ))}
+                    </div>
                     <Input
                       id="tags"
                       value={discussionTags}
                       onChange={(e) => setDiscussionTags(e.target.value)}
-                      placeholder="e.g., espresso, v60, beginner"
+                      placeholder="Or add custom tags (comma-separated)"
                     />
                   </div>
                   {submitError && (
@@ -206,8 +281,8 @@ export default function DiscussionsPage() {
             </Card>
           )}
 
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input
                 type="text"
@@ -217,25 +292,70 @@ export default function DiscussionsPage() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={!selectedCategory ? "default" : "outline"}
-                onClick={() => setSelectedCategory(null)}
-              >
-                All
-              </Button>
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  onClick={() => setSelectedCategory(category)}
-                  size="sm"
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
+            <Button
+              variant={showAdvancedFilters ? "default" : "outline"}
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex items-center gap-2"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
+            </Button>
           </div>
+
+          {showAdvancedFilters && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border space-y-4">
+              <div>
+                <h3 className="font-medium mb-2 text-sm">Category</h3>
+                <div className="flex gap-2 flex-wrap items-center">
+                  <Button
+                    variant={!selectedCategory ? "default" : "outline"}
+                    onClick={() => setSelectedCategory(null)}
+                    size="sm"
+                  >
+                    All
+                  </Button>
+                  {categories.map((category) => (
+                    <Button
+                      key={category}
+                      variant={selectedCategory === category ? "default" : "outline"}
+                      onClick={() => setSelectedCategory(category)}
+                      size="sm"
+                    >
+                      {category}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium mb-2 text-sm">Sort By</h3>
+                <div className="flex gap-2 flex-wrap items-center">
+                  <Button
+                    variant={sortBy === "newest" ? "default" : "outline"}
+                    onClick={() => setSortBy("newest")}
+                    size="sm"
+                  >
+                    Newest
+                  </Button>
+                  <Button
+                    variant={sortBy === "most_replies" ? "default" : "outline"}
+                    onClick={() => setSortBy("most_replies")}
+                    size="sm"
+                  >
+                    Most Replies
+                  </Button>
+                  <Button
+                    variant={sortBy === "most_likes" ? "default" : "outline"}
+                    onClick={() => setSortBy("most_likes")}
+                    size="sm"
+                  >
+                    Most Likes
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -251,11 +371,11 @@ export default function DiscussionsPage() {
         ) : (
           <div className="max-w-4xl mx-auto space-y-4">
             {filteredDiscussions.map((discussion) => (
-              <Link key={discussion.id} href={`/discussions/${discussion.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-1">
+              <Card key={discussion.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <Link href={`/discussions/${discussion.id}`}>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
                             {discussion.category}
@@ -296,11 +416,34 @@ export default function DiscussionsPage() {
                             </span>
                           ))}
                         </div>
-                      </div>
+                      </Link>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    {user && user.id === discussion.author.id && (
+                      <div className="flex flex-col gap-2">
+                        <Link href={`/discussions/${discussion.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                            Edit
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteDiscussion(discussion.id, discussion.author.id)}
+                          className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

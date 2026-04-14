@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { notFound } from "next/navigation"
 import { Star, MapPin, Phone, Globe, ExternalLink, ThumbsUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,8 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { Roastery, Review } from "@/types"
 
-export default function RoasteryDetailPage({ params }: { params: { id: string } }) {
+export default function RoasteryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = use(params)
   const [roastery, setRoastery] = useState<Roastery | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,13 +26,13 @@ export default function RoasteryDetailPage({ params }: { params: { id: string } 
   useEffect(() => {
     fetchRoastery()
     fetchReviews()
-  }, [params.id])
+  }, [unwrappedParams.id])
 
   const fetchRoastery = async () => {
     const { data, error } = await supabase
       .from('roasteries')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', unwrappedParams.id)
       .single()
 
     if (data) {
@@ -56,7 +57,7 @@ export default function RoasteryDetailPage({ params }: { params: { id: string } 
     const { data, error } = await supabase
       .from('reviews')
       .select('*')
-      .eq('target_id', params.id)
+      .eq('target_id', unwrappedParams.id)
       .eq('target_type', 'roastery')
       .order('created_at', { ascending: false })
 
@@ -90,7 +91,7 @@ export default function RoasteryDetailPage({ params }: { params: { id: string } 
       .from('reviews')
       .insert({
         user_id: user.id,
-        target_id: params.id,
+        target_id: unwrappedParams.id,
         target_type: 'roastery',
         rating: reviewRating,
         title: reviewTitle,

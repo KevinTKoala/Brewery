@@ -41,16 +41,24 @@ We believe every coffee lover deserves easy access to quality coffee information
 
 ### 📝 Content Submission
 - Submit reviews for roasteries and cafes
-- Create new discussion topics
+- Create new discussion topics with category and tag selectors
 - Reply to community discussions
+- Edit and delete your own discussions
 - All content stored in Supabase database
+
+### 🔍 Advanced Search & Filters
+- Filter roasteries and cafes by specialty
+- Filter by minimum rating (1-5 stars)
+- Sort by newest, highest rated, or most reviews
+- Filter discussions by category
+- Sort discussions by newest, most replies, or most likes
+- Expandable filter panels for better UX
 
 ### 🛒 Coming Soon
 - Coffee bean marketplace with direct roastery purchases
 - Equipment reviews and recommendations
 - Brewing method guides and tutorials
 - Image upload functionality
-- Advanced search and filters
 
 ## 🚀 Tech Stack
 
@@ -143,6 +151,9 @@ brewery/
 - [x] User profile pages
 - [x] Content submission (reviews, discussions, replies)
 - [x] Database integration with Supabase
+- [x] Advanced search and filters (specialty, rating, sorting)
+- [x] Discussion edit and delete functionality
+- [x] Category and tag selectors in discussion form
 
 ### In Progress 🚧
 - [ ] Coffee bean marketplace
@@ -151,7 +162,6 @@ brewery/
 ### Planned 📋
 - [ ] Equipment reviews and ratings
 - [ ] Brewing method guides
-- [ ] Advanced search and filters
 - [ ] Matcha expansion (matcha brands, products, reviews)
 - [ ] Mobile app
 - [ ] Internationalization support
