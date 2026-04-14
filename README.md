@@ -29,16 +29,28 @@ We believe every coffee lover deserves easy access to quality coffee information
 - Topics range from beginner tips to advanced techniques
 
 ### 🔐 User Authentication
-- Sign up and login functionality (no database yet to store)
-- Persistent sessions using localStorage (demo)
+- Sign up and login functionality with Supabase
+- Secure authentication with Row Level Security (RLS)
 - Protected routes (homepage requires authentication)
-- User greeting in navigation when logged in
+- User greeting and profile link in navigation when logged in
+
+### 👤 User Profiles
+- View your activity stats (reviews, discussions, replies)
+- See your submitted reviews, discussions, and replies
+- Account management and logout functionality
+
+### 📝 Content Submission
+- Submit reviews for roasteries and cafes
+- Create new discussion topics
+- Reply to community discussions
+- All content stored in Supabase database
 
 ### 🛒 Coming Soon
 - Coffee bean marketplace with direct roastery purchases
 - Equipment reviews and recommendations
 - Brewing method guides and tutorials
-- User profiles and follow system
+- Image upload functionality
+- Advanced search and filters
 
 ## 🚀 Tech Stack
 
@@ -48,6 +60,7 @@ We believe every coffee lover deserves easy access to quality coffee information
 - **TailwindCSS 3** - Utility-first CSS framework
 - **shadcn/ui** - Beautiful, accessible UI components
 - **Lucide React** - Icon library
+- **Supabase** - Backend as a Service (database, auth, storage)
 
 ## 📸 Screenshots
 
@@ -111,11 +124,12 @@ brewery/
 │   ├── app/              # Next.js App Router pages
 │   │   ├── login/        # Login page
 │   │   ├── signup/       # Signup page
+│   │   ├── profile/      # User profile page
 │   │   ├── roasteries/   # Roastery listing and detail pages
 │   │   ├── cafes/        # Cafe listing and detail pages
 │   │   └── discussions/  # Discussion forum
 │   ├── components/       # Reusable UI components
-│   ├── lib/             # Utility functions, mock data, and auth context
+│   ├── lib/             # Utility functions, auth context, and Supabase client
 │   └── types/           # TypeScript type definitions
 ├── data-contribution.json # Community contribution data
 ├── screenshots/          # App screenshots
@@ -124,8 +138,17 @@ brewery/
 
 ## 🗺️ Roadmap
 
-- [ ] User authentication system (demo implemented, needs real database)
+### Completed ✅
+- [x] User authentication system with Supabase
+- [x] User profile pages
+- [x] Content submission (reviews, discussions, replies)
+- [x] Database integration with Supabase
+
+### In Progress 🚧
 - [ ] Coffee bean marketplace
+- [ ] Image upload functionality
+
+### Planned 📋
 - [ ] Equipment reviews and ratings
 - [ ] Brewing method guides
 - [ ] Advanced search and filters
