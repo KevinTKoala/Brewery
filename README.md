@@ -152,6 +152,7 @@ brewery/
 - [ ] Equipment reviews and ratings
 - [ ] Brewing method guides
 - [ ] Advanced search and filters
+- [ ] Matcha expansion (matcha brands, products, reviews)
 - [ ] Mobile app
 - [ ] Internationalization support
 
