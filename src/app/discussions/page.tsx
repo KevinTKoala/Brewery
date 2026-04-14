@@ -1,16 +1,96 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, MessageSquare, TrendingUp, Clock, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { discussions } from "@/lib/data"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
+import { Discussion } from "@/types"
 
 export default function DiscussionsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [discussions, setDiscussions] = useState<Discussion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showDiscussionForm, setShowDiscussionForm] = useState(false)
+  const [discussionTitle, setDiscussionTitle] = useState("")
+  const [discussionContent, setDiscussionContent] = useState("")
+  const [discussionCategory, setDiscussionCategory] = useState("")
+  const [discussionTags, setDiscussionTags] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState("")
+  const { user } = useAuth()
+
+  useEffect(() => {
+    fetchDiscussions()
+  }, [])
+
+  const fetchDiscussions = async () => {
+    const { data, error } = await supabase
+      .from('discussions')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (data) {
+      setDiscussions(data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        content: d.content,
+        author: {
+          id: d.author_id,
+          name: d.author_id, // Will be updated with profile name
+          avatar: undefined,
+        },
+        category: d.category,
+        tags: d.tags,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+        replyCount: d.reply_count,
+        viewCount: d.view_count,
+        likes: d.likes,
+      })))
+    }
+    setLoading(false)
+  }
+
+  const handleSubmitDiscussion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) {
+      setSubmitError("Please log in to submit a discussion")
+      return
+    }
+
+    setSubmitting(true)
+    setSubmitError("")
+
+    const tagsArray = discussionTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+
+    const { error } = await supabase
+      .from('discussions')
+      .insert({
+        title: discussionTitle,
+        content: discussionContent,
+        author_id: user.id,
+        category: discussionCategory,
+        tags: tagsArray,
+      })
+
+    if (error) {
+      setSubmitError(error.message)
+    } else {
+      setShowDiscussionForm(false)
+      setDiscussionTitle("")
+      setDiscussionContent("")
+      setDiscussionCategory("")
+      setDiscussionTags("")
+      fetchDiscussions()
+    }
+
+    setSubmitting(false)
+  }
 
   const categories = Array.from(new Set(discussions.map((d) => d.category))).sort()
 
@@ -51,11 +131,80 @@ export default function DiscussionsPage() {
                 Connect with fellow coffee enthusiasts and share your knowledge
               </p>
             </div>
-            <Button className="bg-green-600 hover:bg-green-700">
+            <Button onClick={() => setShowDiscussionForm(!showDiscussionForm)} className="bg-green-600 hover:bg-green-700">
               <Plus className="mr-2 h-5 w-5" />
-              New Discussion
+              {showDiscussionForm ? "Cancel" : "New Discussion"}
             </Button>
           </div>
+
+          {showDiscussionForm && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Create New Discussion</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmitDiscussion} className="space-y-4">
+                  <div>
+                    <label htmlFor="title" className="text-sm font-medium mb-2 block">
+                      Title
+                    </label>
+                    <Input
+                      id="title"
+                      value={discussionTitle}
+                      onChange={(e) => setDiscussionTitle(e.target.value)}
+                      placeholder="What's your question or topic?"
+                      required
+                      minLength={5}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="category" className="text-sm font-medium mb-2 block">
+                      Category
+                    </label>
+                    <Input
+                      id="category"
+                      value={discussionCategory}
+                      onChange={(e) => setDiscussionCategory(e.target.value)}
+                      placeholder="e.g., Brewing, Equipment, Beans"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="content" className="text-sm font-medium mb-2 block">
+                      Content
+                    </label>
+                    <textarea
+                      id="content"
+                      value={discussionContent}
+                      onChange={(e) => setDiscussionContent(e.target.value)}
+                      placeholder="Share your thoughts, questions, or experiences..."
+                      required
+                      minLength={10}
+                      rows={6}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="tags" className="text-sm font-medium mb-2 block">
+                      Tags (comma-separated)
+                    </label>
+                    <Input
+                      id="tags"
+                      value={discussionTags}
+                      onChange={(e) => setDiscussionTags(e.target.value)}
+                      placeholder="e.g., espresso, v60, beginner"
+                    />
+                  </div>
+                  {submitError && (
+                    <p className="text-sm text-red-600">{submitError}</p>
+                  )}
+                  <Button type="submit" disabled={submitting} className="bg-green-600 hover:bg-green-700">
+                    {submitting ? "Submitting..." : "Submit Discussion"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
@@ -91,7 +240,11 @@ export default function DiscussionsPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {filteredDiscussions.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Loading discussions...</p>
+          </div>
+        ) : filteredDiscussions.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No discussions found matching your search.</p>
           </div>

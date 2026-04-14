@@ -41,12 +41,12 @@ export default function SignupPage() {
 
     setLoading(true)
 
-    const success = await signup(name, email, password)
+    const result = await signup(name, email, password)
 
-    if (success) {
+    if (result.success) {
       router.push("/")
     } else {
-      setError("An account with this email already exists")
+      setError(result.error || "An account with this email already exists")
     }
     setLoading(false)
   }

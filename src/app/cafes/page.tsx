@@ -1,15 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, Star, MapPin, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { cafes } from "@/lib/data"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { Cafe } from "@/types"
 
 export default function CafesPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [cafes, setCafes] = useState<Cafe[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchCafes()
+  }, [])
+
+  const fetchCafes = async () => {
+    const { data, error } = await supabase
+      .from('cafes')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (data) {
+      setCafes(data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        location: c.location,
+        description: c.description,
+        rating: c.rating,
+        reviewCount: c.review_count,
+        specialties: c.specialties,
+        website: c.website,
+        phone: c.phone,
+        address: c.address,
+        hours: c.hours,
+        images: c.images,
+      })))
+    }
+    setLoading(false)
+  }
 
   const filteredCafes = cafes.filter((cafe) => {
     return (
@@ -42,7 +74,11 @@ export default function CafesPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {filteredCafes.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Loading cafes...</p>
+          </div>
+        ) : filteredCafes.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No cafes found matching your search.</p>
           </div>

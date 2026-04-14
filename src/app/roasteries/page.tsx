@@ -1,16 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, Filter, Star, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { roasteries } from "@/lib/data"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { Roastery } from "@/types"
 
 export default function RoasteriesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null)
+  const [roasteries, setRoasteries] = useState<Roastery[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchRoasteries()
+  }, [])
+
+  const fetchRoasteries = async () => {
+    const { data, error } = await supabase
+      .from('roasteries')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (data) {
+      setRoasteries(data.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        location: r.location,
+        description: r.description,
+        rating: r.rating,
+        reviewCount: r.review_count,
+        specialties: r.specialties,
+        website: r.website,
+        phone: r.phone,
+        address: r.address,
+        images: r.images,
+      })))
+    }
+    setLoading(false)
+  }
 
   const allSpecialties = Array.from(
     new Set(roasteries.flatMap((r) => r.specialties))
@@ -71,7 +102,11 @@ export default function RoasteriesPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {filteredRoasteries.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Loading roasteries...</p>
+          </div>
+        ) : filteredRoasteries.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No roasteries found matching your search.</p>
           </div>

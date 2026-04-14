@@ -2,12 +2,14 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { User } from "@/types"
+import { supabase } from "@/lib/supabase"
+import { Session, AuthError } from "@supabase/supabase-js"
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<boolean>
-  signup: (name: string, email: string, password: string) => Promise<boolean>
-  logout: () => void
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  logout: () => Promise<void>
   loading: boolean
 }
 
@@ -19,52 +21,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in on mount
-    const storedUser = localStorage.getItem("currentUser")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
-    setLoading(false)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      }
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      } else {
+        setUser(null)
+      }
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    const foundUser = users.find((u: any) => u.email === email && u.password === password)
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
     
-    if (foundUser) {
-      const userWithoutPassword = { ...foundUser }
-      delete userWithoutPassword.password
-      setUser(userWithoutPassword)
-      localStorage.setItem("currentUser", JSON.stringify(userWithoutPassword))
-      return true
+    if (data) {
+      setUser({
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        avatar: data.avatar,
+        joinedAt: data.joined_at
+      })
     }
-    return false
   }
 
-  const signup = async (name: string, email: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    
-    if (users.find((u: any) => u.email === email)) {
-      return false
-    }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      name,
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      joinedAt: new Date().toISOString(),
+      password,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
     }
 
-    users.push({ ...newUser, password })
-    localStorage.setItem("users", JSON.stringify(users))
-    
-    setUser(newUser)
-    localStorage.setItem("currentUser", JSON.stringify(newUser))
-    return true
+    return { success: true }
   }
 
-  const logout = () => {
+  const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+        },
+      },
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  }
+
+  const logout = async () => {
+    await supabase.auth.signOut()
     setUser(null)
-    localStorage.removeItem("currentUser")
   }
 
   return (

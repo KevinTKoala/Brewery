@@ -44,7 +44,15 @@ export function Navigation() {
             </div>
             {user ? (
               <div className="flex items-center space-x-2">
-                <span className="hidden sm:block text-sm text-gray-600">Hi, {user.name}</span>
+                <Link href="/profile" className="hidden sm:flex items-center space-x-1 text-sm text-gray-600 hover:text-green-600 transition-colors">
+                  <User className="h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
+                <Link href="/profile" className="sm:hidden">
+                  <Button variant="ghost" size="icon" title="Profile">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
                 <Button variant="ghost" size="icon" onClick={logout} title="Logout">
                   <LogOut className="h-5 w-5" />
                 </Button>
