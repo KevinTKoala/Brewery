@@ -146,9 +146,9 @@ export default function AdminDashboardPage() {
                 <Store className="h-4 w-4 mr-2" />
                 Manage Cafes
               </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/profile')}>
+              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/users')}>
                 <Users className="h-4 w-4 mr-2" />
-                Manage Users (Coming Soon)
+                Manage Users
               </Button>
             </CardContent>
           </Card>

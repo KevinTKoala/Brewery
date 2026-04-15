@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import { notFound } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { MessageSquare, Clock, Heart, Send, User, Edit2, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,9 +13,30 @@ import { Discussion, Reply } from "@/types"
 
 export default function DiscussionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [discussion, setDiscussion] = useState<Discussion | null>(null)
   const [replies, setReplies] = useState<Reply[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
+
   const [replyContent, setReplyContent] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
@@ -33,17 +55,6 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
   const [editReplyContent, setEditReplyContent] = useState("")
   const [editReplyError, setEditReplyError] = useState("")
   const [editReplySubmitting, setEditReplySubmitting] = useState(false)
-  const { user } = useAuth()
-
-  useEffect(() => {
-    fetchDiscussion()
-    fetchReplies()
-    incrementViewCount()
-    if (user) {
-      checkIfLiked()
-      checkLikedReplies()
-    }
-  }, [unwrappedParams.id, user])
 
   const checkLikedReplies = async () => {
     if (!user) return
@@ -78,6 +89,16 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
 
     setHasLiked(!!data)
   }
+
+  useEffect(() => {
+    fetchDiscussion()
+    fetchReplies()
+    incrementViewCount()
+    if (user) {
+      checkIfLiked()
+      checkLikedReplies()
+    }
+  }, [unwrappedParams.id, user])
 
   const handleLike = async () => {
     if (!user) {
@@ -154,7 +175,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
         images: data.images,
       })
     }
-    setLoading(false)
+    setDataLoading(false)
   }
 
   const fetchReplies = async () => {
@@ -403,7 +424,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
     return "Just now"
   }
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p>Loading...</p>

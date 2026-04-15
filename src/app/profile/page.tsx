@@ -230,7 +230,7 @@ export default function ProfilePage() {
                   <h1 className="text-3xl font-bold">{user.name}</h1>
                   <p className="text-gray-600">{user.email}</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Joined {new Date(user.joinedAt).toLocaleDateString()}
+                    Joined {new Date(user.joinedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                   </p>
                 </div>
               </div>
@@ -374,7 +374,7 @@ export default function ProfilePage() {
                       <h3 className="font-medium">{review.title}</h3>
                       <p className="text-sm text-gray-600 mt-1">{review.content}</p>
                       <p className="text-xs text-gray-500 mt-2">
-                        {new Date(review.createdAt).toLocaleDateString()}
+                        {new Date(review.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </p>
                     </div>
                   ))}
@@ -400,7 +400,7 @@ export default function ProfilePage() {
                       <h3 className="font-medium">{discussion.title}</h3>
                       <p className="text-sm text-gray-600 mt-1">{discussion.content.substring(0, 100)}...</p>
                       <p className="text-xs text-gray-500 mt-2">
-                        {new Date(discussion.createdAt).toLocaleDateString()} • {discussion.replyCount} replies
+                        {new Date(discussion.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} • {discussion.replyCount} replies
                       </p>
                     </div>
                   ))}
@@ -425,7 +425,7 @@ export default function ProfilePage() {
                     <div key={reply.id} className="border-b pb-4 last:border-0">
                       <p className="text-sm text-gray-700">{reply.content}</p>
                       <p className="text-xs text-gray-500 mt-2">
-                        {new Date(reply.createdAt).toLocaleDateString()}
+                        {new Date(reply.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </p>
                     </div>
                   ))}

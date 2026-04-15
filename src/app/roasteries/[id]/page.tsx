@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import { notFound } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Star, MapPin, Phone, Globe, ExternalLink, ThumbsUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,9 +14,30 @@ import { ImageUpload } from "@/components/image-upload"
 
 export default function RoasteryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [roastery, setRoastery] = useState<Roastery | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
+
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [reviewTitle, setReviewTitle] = useState("")
   const [reviewContent, setReviewContent] = useState("")
@@ -23,12 +45,6 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
   const [reviewImageUrl, setReviewImageUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
-  const { user } = useAuth()
-
-  useEffect(() => {
-    fetchRoastery()
-    fetchReviews()
-  }, [unwrappedParams.id])
 
   const fetchRoastery = async () => {
     const { data, error } = await supabase
@@ -53,7 +69,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
         image: data.image,
       })
     }
-    setLoading(false)
+    setDataLoading(false)
   }
 
   const fetchReviews = async () => {
@@ -79,6 +95,19 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
         image: r.image,
       })))
     }
+  }
+
+  useEffect(() => {
+    fetchRoastery()
+    fetchReviews()
+  }, [unwrappedParams.id])
+
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
   }
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -118,7 +147,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
     setSubmitting(false)
   }
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p>Loading...</p>
@@ -331,7 +360,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
                     )}
                     <p className="text-gray-700 mb-4">{review.content}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+                      <span>{new Date(review.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
                       <Button variant="ghost" size="sm">
                         <ThumbsUp className="h-4 w-4 mr-2" />
                         {review.helpfulCount} Helpful

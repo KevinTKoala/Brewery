@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Search, Filter, Star, MapPin, ChevronDown, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,19 +10,36 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Roastery } from "@/types"
 import Image from "next/image"
+import { useAuth } from "@/lib/auth-context"
 
 export default function RoasteriesPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null)
   const [minRating, setMinRating] = useState<number | null>(null)
   const [sortBy, setSortBy] = useState<"newest" | "highest_rated" | "most_reviews">("newest")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [roasteries, setRoasteries] = useState<Roastery[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
 
   useEffect(() => {
-    fetchRoasteries()
-  }, [])
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
 
   const fetchRoasteries = async () => {
     const { data, error } = await supabase
@@ -45,8 +63,12 @@ export default function RoasteriesPage() {
         image: r.image,
       })))
     }
-    setLoading(false)
+    setDataLoading(false)
   }
+
+  useEffect(() => {
+    fetchRoasteries()
+  }, [])
 
   const allSpecialties = Array.from(
     new Set(roasteries.flatMap((r) => r.specialties))

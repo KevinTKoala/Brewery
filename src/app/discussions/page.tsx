@@ -13,13 +13,33 @@ import { useRouter } from "next/navigation"
 import { ImageUpload } from "@/components/image-upload"
 
 export default function DiscussionsPage() {
+  const { user, loading } = useAuth()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"newest" | "most_replies" | "most_likes">("newest")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [discussions, setDiscussions] = useState<Discussion[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
+
   const [showDiscussionForm, setShowDiscussionForm] = useState(false)
   const [discussionTitle, setDiscussionTitle] = useState("")
   const [discussionContent, setDiscussionContent] = useState("")
@@ -28,11 +48,6 @@ export default function DiscussionsPage() {
   const [discussionImages, setDiscussionImages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
-  const { user } = useAuth()
-
-  useEffect(() => {
-    fetchDiscussions()
-  }, [])
 
   const fetchDiscussions = async () => {
     const { data, error } = await supabase
@@ -60,7 +75,19 @@ export default function DiscussionsPage() {
         images: d.images,
       })))
     }
-    setLoading(false)
+    setDataLoading(false)
+  }
+
+  useEffect(() => {
+    fetchDiscussions()
+  }, [])
+
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
   }
 
   const handleSubmitDiscussion = async (e: React.FormEvent) => {

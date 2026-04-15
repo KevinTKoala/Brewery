@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Search, Star, MapPin, Clock, ChevronDown, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,19 +10,36 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Cafe } from "@/types"
 import Image from "next/image"
+import { useAuth } from "@/lib/auth-context"
 
 export default function CafesPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null)
   const [minRating, setMinRating] = useState<number | null>(null)
   const [sortBy, setSortBy] = useState<"newest" | "highest_rated" | "most_reviews">("newest")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [cafes, setCafes] = useState<Cafe[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
 
   useEffect(() => {
-    fetchCafes()
-  }, [])
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
 
   const fetchCafes = async () => {
     const { data, error } = await supabase
@@ -46,8 +64,12 @@ export default function CafesPage() {
         image: c.image,
       })))
     }
-    setLoading(false)
+    setDataLoading(false)
   }
+
+  useEffect(() => {
+    fetchCafes()
+  }, [])
 
   const allSpecialties = Array.from(
     new Set(cafes.flatMap((c) => c.specialties))

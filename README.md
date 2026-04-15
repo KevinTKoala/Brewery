@@ -168,6 +168,8 @@ brewery/
 - [x] Role-based permissions throughout the app
 - [x] Reply functionality (edit, delete, like)
 - [x] Unique view count tracking per user
+- [x] Authentication protection for roasteries, cafes, and discussions pages
+- [x] Admin user management (view, edit roles, delete users)
 
 ### In Progress 🚧
 - [ ] Coffee bean marketplace
