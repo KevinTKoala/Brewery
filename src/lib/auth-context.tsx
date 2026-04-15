@@ -47,14 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single()
-    
+
     if (data) {
       setUser({
         id: data.id,
         name: data.name,
         email: data.email,
         avatar: data.avatar,
-        joinedAt: data.joined_at
+        joinedAt: data.joined_at,
+        role: data.role || 'user'
       })
     }
   }

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Roastery } from "@/types"
+import Image from "next/image"
 
 export default function RoasteriesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -41,6 +42,7 @@ export default function RoasteriesPage() {
         phone: r.phone,
         address: r.address,
         images: r.images,
+        image: r.image,
       })))
     }
     setLoading(false)
@@ -96,15 +98,22 @@ export default function RoasteriesPage() {
                 className="pl-10"
               />
             </div>
-            <Button
-              variant={showAdvancedFilters ? "default" : "outline"}
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-2"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={showAdvancedFilters ? "default" : "outline"}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="flex items-center gap-2"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
+              </Button>
+              <Link href="/roasteries/add">
+                <Button className="bg-green-600 hover:bg-green-700">
+                  Add Roastery
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {showAdvancedFilters && (
@@ -205,6 +214,15 @@ export default function RoasteriesPage() {
             {filteredRoasteries.map((roastery) => (
               <Link key={roastery.id} href={`/roasteries/${roastery.id}`}>
                 <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                  {roastery.image && (
+                    <div className="relative h-48 w-full">
+                      <img
+                        src={roastery.image}
+                        alt={roastery.name}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                  )}
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

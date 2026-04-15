@@ -60,6 +60,13 @@ We believe every coffee lover deserves easy access to quality coffee information
 - Brewing method guides and tutorials
 - Image upload functionality
 
+### 🗺️ Google Maps Integration (Future)
+- Search and add cafes/roasteries via Google Places API
+- Auto-populate submission forms with Google Maps data
+- Source attribution (Google Places, manual entry, etc.)
+- Access to Google's photos and location data
+- Enhanced data accuracy and faster entry
+
 ## 🚀 Tech Stack
 
 - **Next.js 16.2.3** - React framework with App Router
@@ -148,20 +155,27 @@ brewery/
 
 ### Completed ✅
 - [x] User authentication system with Supabase
-- [x] User profile pages
+- [x] User profile pages with profile picture upload
 - [x] Content submission (reviews, discussions, replies)
 - [x] Database integration with Supabase
 - [x] Advanced search and filters (specialty, rating, sorting)
 - [x] Discussion edit and delete functionality
 - [x] Category and tag selectors in discussion form
+- [x] Image upload functionality (discussions, reviews, roasteries, cafes, profile pictures)
+- [x] Roastery/cafe submission forms with image upload
+- [x] User roles (admin, moderator, user)
+- [x] Admin dashboard
+- [x] Role-based permissions throughout the app
+- [x] Reply functionality (edit, delete, like)
+- [x] Unique view count tracking per user
 
 ### In Progress 🚧
 - [ ] Coffee bean marketplace
-- [ ] Image upload functionality
 
 ### Planned 📋
 - [ ] Equipment reviews and ratings
 - [ ] Brewing method guides
+- [ ] Google Maps Integration (search and add cafes/roasteries via Google Places API)
 - [ ] Matcha expansion (matcha brands, products, reviews)
 - [ ] Mobile app
 - [ ] Internationalization support

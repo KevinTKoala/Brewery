@@ -1,9 +1,12 @@
+export type UserRole = 'admin' | 'moderator' | 'user'
+
 export interface User {
   id: string
   name: string
   email: string
   avatar?: string
   joinedAt: string
+  role?: UserRole
 }
 
 export interface Roastery {
@@ -18,6 +21,7 @@ export interface Roastery {
   phone?: string
   address?: string
   images: string[]
+  image?: string
 }
 
 export interface Cafe {
@@ -33,6 +37,7 @@ export interface Cafe {
   address?: string
   hours?: string
   images: string[]
+  image?: string
 }
 
 export interface Review {
@@ -46,6 +51,7 @@ export interface Review {
   content: string
   createdAt: string
   helpfulCount: number
+  image?: string
 }
 
 export interface Discussion {
@@ -64,6 +70,7 @@ export interface Discussion {
   replyCount: number
   viewCount: number
   likes: number
+  images?: string[]
 }
 
 export interface Reply {

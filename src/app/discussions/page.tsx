@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { Discussion } from "@/types"
 import { useRouter } from "next/navigation"
+import { ImageUpload } from "@/components/image-upload"
 
 export default function DiscussionsPage() {
   const router = useRouter()
@@ -24,6 +25,7 @@ export default function DiscussionsPage() {
   const [discussionContent, setDiscussionContent] = useState("")
   const [discussionCategory, setDiscussionCategory] = useState("")
   const [discussionTags, setDiscussionTags] = useState("")
+  const [discussionImages, setDiscussionImages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const { user } = useAuth()
@@ -55,6 +57,7 @@ export default function DiscussionsPage() {
         replyCount: d.reply_count,
         viewCount: d.view_count,
         likes: d.likes,
+        images: d.images,
       })))
     }
     setLoading(false)
@@ -80,6 +83,7 @@ export default function DiscussionsPage() {
         author_id: user.id,
         category: discussionCategory,
         tags: tagsArray,
+        images: discussionImages,
       })
 
     if (error) {
@@ -90,6 +94,7 @@ export default function DiscussionsPage() {
       setDiscussionContent("")
       setDiscussionCategory("")
       setDiscussionTags("")
+      setDiscussionImages([])
       fetchDiscussions()
     }
 
@@ -97,7 +102,10 @@ export default function DiscussionsPage() {
   }
 
   const handleDeleteDiscussion = async (discussionId: string, authorId: string) => {
-    if (!user || user.id !== authorId) return
+    if (!user) return
+
+    // Only allow deletion if user is author, admin, or moderator
+    if (user.id !== authorId && user.role !== 'admin' && user.role !== 'moderator') return
 
     if (!confirm('Are you sure you want to delete this discussion? This action cannot be undone.')) {
       return
@@ -107,7 +115,6 @@ export default function DiscussionsPage() {
       .from('discussions')
       .delete()
       .eq('id', discussionId)
-      .eq('author_id', user.id)
 
     if (error) {
       alert('Failed to delete discussion: ' + error.message)
@@ -270,6 +277,17 @@ export default function DiscussionsPage() {
                       placeholder="Or add custom tags (comma-separated)"
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Images
+                    </label>
+                    <ImageUpload
+                      onUploadComplete={(url) => {
+                        setDiscussionImages(prev => [...prev, url])
+                      }}
+                      onUploadError={(error) => setSubmitError(error)}
+                    />
+                  </div>
                   {submitError && (
                     <p className="text-sm text-red-600">{submitError}</p>
                   )}
@@ -418,7 +436,7 @@ export default function DiscussionsPage() {
                         </div>
                       </Link>
                     </div>
-                    {user && user.id === discussion.author.id && (
+                    {user && (user.id === discussion.author.id || user.role === 'admin' || user.role === 'moderator') && (
                       <div className="flex flex-col gap-2">
                         <Link href={`/discussions/${discussion.id}`}>
                           <Button

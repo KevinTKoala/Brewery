@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { User, MessageSquare, Star, LogOut } from "lucide-react"
+import { User, MessageSquare, Star, LogOut, Edit2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { Review, Discussion, Reply } from "@/types"
+import { ImageUpload } from "@/components/image-upload"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -16,6 +18,16 @@ export default function ProfilePage() {
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [replies, setReplies] = useState<Reply[]>([])
   const [loading, setLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [editEmail, setEditEmail] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [updateError, setUpdateError] = useState("")
+  const [updateSuccess, setUpdateSuccess] = useState("")
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -23,10 +35,23 @@ export default function ProfilePage() {
       return
     }
     fetchUserData()
+    setEditName(user.name)
+    setEditEmail(user.email)
   }, [user])
 
   const fetchUserData = async () => {
     if (!user) return
+
+    // Fetch user's profile to get avatar
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .single()
+
+    if (profileData?.avatar_url) {
+      setAvatarUrl(profileData.avatar_url)
+    }
 
     // Fetch user's reviews
     const { data: reviewsData } = await supabase
@@ -47,6 +72,7 @@ export default function ProfilePage() {
         userName: user.name,
         helpfulCount: r.helpful_count,
         createdAt: r.created_at,
+        image: r.image,
       })))
     }
 
@@ -108,6 +134,68 @@ export default function ProfilePage() {
     router.push("/")
   }
 
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setUpdateError("")
+    setUpdateSuccess("")
+    setUpdating(true)
+
+    try {
+      // Update profile in Supabase
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          name: editName,
+          avatar_url: avatarUrl
+        })
+        .eq('id', user.id)
+
+      if (profileError) {
+        throw profileError
+      }
+
+      // Update email if changed
+      if (editEmail !== user.email) {
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: editEmail
+        })
+
+        if (emailError) {
+          throw emailError
+        }
+      }
+
+      // Update password if provided
+      if (newPassword) {
+        if (newPassword !== confirmPassword) {
+          throw new Error("Passwords do not match")
+        }
+
+        if (newPassword.length < 6) {
+          throw new Error("Password must be at least 6 characters")
+        }
+
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: newPassword
+        })
+
+        if (passwordError) {
+          throw passwordError
+        }
+      }
+
+      setUpdateSuccess("Profile updated successfully!")
+      setIsEditing(false)
+      
+      // Refresh user data
+      window.location.reload()
+    } catch (error: any) {
+      setUpdateError(error.message || "Failed to update profile")
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -127,9 +215,17 @@ export default function ProfilePage() {
           <div className="max-w-4xl mx-auto">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center">
-                  <User className="h-10 w-10 text-green-600" />
-                </div>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={user.name}
+                    className="h-20 w-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center">
+                    <User className="h-10 w-10 text-green-600" />
+                  </div>
+                )}
                 <div>
                   <h1 className="text-3xl font-bold">{user.name}</h1>
                   <p className="text-gray-600">{user.email}</p>
@@ -138,11 +234,96 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
-              <Button onClick={handleLogout} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsEditing(!isEditing)} variant="outline">
+                  {isEditing ? <X className="h-4 w-4 mr-2" /> : <Edit2 className="h-4 w-4 mr-2" />}
+                  {isEditing ? "Cancel" : "Edit Profile"}
+                </Button>
+                <Button onClick={handleLogout} variant="outline">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
             </div>
+
+            {isEditing && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>Edit Profile</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleUpdateProfile} className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Profile Picture
+                      </label>
+                      <ImageUpload
+                        onUploadComplete={(url) => setAvatarUrl(url)}
+                        onUploadError={(error) => setUpdateError(error)}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="name" className="text-sm font-medium mb-2 block">
+                        Name
+                      </label>
+                      <Input
+                        id="name"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="email" className="text-sm font-medium mb-2 block">
+                        Email
+                      </label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="newPassword" className="text-sm font-medium mb-2 block">
+                        New Password (optional)
+                      </label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Leave blank to keep current password"
+                      />
+                    </div>
+                    {newPassword && (
+                      <div>
+                        <label htmlFor="confirmPassword" className="text-sm font-medium mb-2 block">
+                          Confirm New Password
+                        </label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    )}
+                    {updateError && (
+                      <p className="text-sm text-red-600">{updateError}</p>
+                    )}
+                    {updateSuccess && (
+                      <p className="text-sm text-green-600">{updateSuccess}</p>
+                    )}
+                    <Button type="submit" disabled={updating} className="bg-green-600 hover:bg-green-700">
+                      {updating ? "Updating..." : "Update Profile"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

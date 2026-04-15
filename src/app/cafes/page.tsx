@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Cafe } from "@/types"
+import Image from "next/image"
 
 export default function CafesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -42,6 +43,7 @@ export default function CafesPage() {
         address: c.address,
         hours: c.hours,
         images: c.images,
+        image: c.image,
       })))
     }
     setLoading(false)
@@ -97,15 +99,22 @@ export default function CafesPage() {
                 className="pl-10"
               />
             </div>
-            <Button
-              variant={showAdvancedFilters ? "default" : "outline"}
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-2"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={showAdvancedFilters ? "default" : "outline"}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="flex items-center gap-2"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
+              </Button>
+              <Link href="/cafes/add">
+                <Button className="bg-amber-600 hover:bg-amber-700">
+                  Add Cafe
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {showAdvancedFilters && (
@@ -206,6 +215,15 @@ export default function CafesPage() {
             {filteredCafes.map((cafe) => (
               <Link key={cafe.id} href={`/cafes/${cafe.id}`}>
                 <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                  {cafe.image && (
+                    <div className="relative h-48 w-full">
+                      <img
+                        src={cafe.image}
+                        alt={cafe.name}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                  )}
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

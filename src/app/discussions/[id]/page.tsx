@@ -26,12 +26,106 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
   const [isDeleting, setIsDeleting] = useState(false)
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState("")
+  const [hasLiked, setHasLiked] = useState(false)
+  const [liking, setLiking] = useState(false)
+  const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set())
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null)
+  const [editReplyContent, setEditReplyContent] = useState("")
+  const [editReplyError, setEditReplyError] = useState("")
+  const [editReplySubmitting, setEditReplySubmitting] = useState(false)
   const { user } = useAuth()
 
   useEffect(() => {
     fetchDiscussion()
     fetchReplies()
-  }, [unwrappedParams.id])
+    incrementViewCount()
+    if (user) {
+      checkIfLiked()
+      checkLikedReplies()
+    }
+  }, [unwrappedParams.id, user])
+
+  const checkLikedReplies = async () => {
+    if (!user) return
+
+    const { data } = await supabase
+      .from('reply_likes')
+      .select('reply_id')
+      .eq('user_id', user.id)
+      .in('reply_id', replies.map(r => r.id))
+
+    if (data) {
+      setLikedReplies(new Set(data.map(d => d.reply_id)))
+    }
+  }
+
+  const incrementViewCount = async () => {
+    await supabase.rpc('increment_view_count', { 
+      discussion_id: unwrappedParams.id,
+      user_id: user?.id || null
+    })
+  }
+
+  const checkIfLiked = async () => {
+    if (!user) return
+
+    const { data } = await supabase
+      .from('discussion_likes')
+      .select('*')
+      .eq('discussion_id', unwrappedParams.id)
+      .eq('user_id', user.id)
+      .single()
+
+    setHasLiked(!!data)
+  }
+
+  const handleLike = async () => {
+    if (!user) {
+      alert("Please log in to like discussions")
+      return
+    }
+
+    setLiking(true)
+
+    try {
+      if (hasLiked) {
+        // Unlike
+        await supabase
+          .from('discussion_likes')
+          .delete()
+          .eq('discussion_id', unwrappedParams.id)
+          .eq('user_id', user.id)
+
+        await supabase
+          .from('discussions')
+          .update({ likes: (discussion?.likes || 0) - 1 })
+          .eq('id', unwrappedParams.id)
+
+        setHasLiked(false)
+        setDiscussion(prev => prev ? { ...prev, likes: (prev.likes || 0) - 1 } : null)
+      } else {
+        // Like
+        await supabase
+          .from('discussion_likes')
+          .insert({
+            discussion_id: unwrappedParams.id,
+            user_id: user.id
+          })
+
+        await supabase
+          .from('discussions')
+          .update({ likes: (discussion?.likes || 0) + 1 })
+          .eq('id', unwrappedParams.id)
+
+        setHasLiked(true)
+        setDiscussion(prev => prev ? { ...prev, likes: (prev.likes || 0) + 1 } : null)
+      }
+    } catch (error) {
+      console.error("Error liking discussion:", error)
+    } finally {
+      setLiking(false)
+    }
+  }
 
   const fetchDiscussion = async () => {
     const { data, error } = await supabase
@@ -57,6 +151,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
         replyCount: data.reply_count,
         viewCount: data.view_count,
         likes: data.likes,
+        images: data.images,
       })
     }
     setLoading(false)
@@ -109,10 +204,124 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
     } else {
       setReplyContent("")
       fetchReplies()
+      await supabase.rpc('increment_reply_count', { discussion_id: unwrappedParams.id })
       fetchDiscussion() // To update reply count
     }
 
     setSubmitting(false)
+  }
+
+  const handleDeleteReply = async (replyId: string, authorId: string) => {
+    if (!user) return
+
+    // Only allow deletion if user is author, admin, or moderator
+    const canDelete = user.id === authorId || user.role === 'admin' || user.role === 'moderator'
+    if (!canDelete) {
+      alert("You don't have permission to delete this reply")
+      return
+    }
+
+    if (!confirm("Are you sure you want to delete this reply?")) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('replies')
+      .delete()
+      .eq('id', replyId)
+
+    if (error) {
+      alert("Failed to delete reply")
+    } else {
+      fetchReplies()
+      await supabase.rpc('decrement_reply_count', { discussion_id: unwrappedParams.id })
+      fetchDiscussion() // To update reply count
+    }
+  }
+
+  const handleLikeReply = async (replyId: string) => {
+    if (!user) {
+      alert("Please log in to like replies")
+      return
+    }
+
+    const hasLiked = likedReplies.has(replyId)
+
+    try {
+      if (hasLiked) {
+        // Unlike
+        await supabase
+          .from('reply_likes')
+          .delete()
+          .eq('reply_id', replyId)
+          .eq('user_id', user.id)
+
+        await supabase
+          .from('replies')
+          .update({ likes: (replies.find(r => r.id === replyId)?.likes || 0) - 1 })
+          .eq('id', replyId)
+
+        setLikedReplies(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(replyId)
+          return newSet
+        })
+      } else {
+        // Like
+        await supabase
+          .from('reply_likes')
+          .insert({
+            reply_id: replyId,
+            user_id: user.id
+          })
+
+        await supabase
+          .from('replies')
+          .update({ likes: (replies.find(r => r.id === replyId)?.likes || 0) + 1 })
+          .eq('id', replyId)
+
+        setLikedReplies(prev => new Set([...prev, replyId]))
+      }
+
+      fetchReplies()
+    } catch (error) {
+      console.error("Error liking reply:", error)
+    }
+  }
+
+  const handleStartEditReply = (replyId: string, content: string) => {
+    setEditingReplyId(replyId)
+    setEditReplyContent(content)
+    setEditReplyError("")
+  }
+
+  const handleCancelEditReply = () => {
+    setEditingReplyId(null)
+    setEditReplyContent("")
+    setEditReplyError("")
+  }
+
+  const handleSubmitEditReply = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !editingReplyId) return
+
+    setEditReplySubmitting(true)
+    setEditReplyError("")
+
+    const { error } = await supabase
+      .from('replies')
+      .update({ content: editReplyContent })
+      .eq('id', editingReplyId)
+
+    if (error) {
+      setEditReplyError(error.message)
+    } else {
+      setEditingReplyId(null)
+      setEditReplyContent("")
+      fetchReplies()
+    }
+
+    setEditReplySubmitting(false)
   }
 
   const handleStartEdit = () => {
@@ -170,7 +379,6 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
       .from('discussions')
       .delete()
       .eq('id', unwrappedParams.id)
-      .eq('author_id', user.id)
 
     if (error) {
       alert('Failed to delete discussion: ' + error.message)
@@ -181,6 +389,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
   }
 
   const isAuthor = user && discussion && user.id === discussion.author.id
+  const canEditDelete = isAuthor || user?.role === 'admin' || user?.role === 'moderator'
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
@@ -221,7 +430,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
                   {formatTimeAgo(discussion.createdAt)}
                 </div>
               </div>
-              {isAuthor && (
+              {canEditDelete && (
                 <div className="flex gap-2">
                   {!isEditing && (
                     <>
@@ -358,15 +567,32 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
               ))}
             </div>
 
+            {discussion.images && discussion.images.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                {discussion.images.map((imageUrl, index) => (
+                  <img
+                    key={index}
+                    src={imageUrl}
+                    alt={`Discussion image ${index + 1}`}
+                    className="w-full h-auto rounded-lg"
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center gap-6 text-sm text-gray-500 mb-6">
               <div className="flex items-center">
                 <MessageSquare className="h-4 w-4 mr-1" />
                 {discussion.replyCount} replies
               </div>
-              <div className="flex items-center">
-                <Heart className="h-4 w-4 mr-1" />
+              <button
+                onClick={handleLike}
+                disabled={liking}
+                className="flex items-center hover:text-red-500 transition-colors disabled:opacity-50"
+              >
+                <Heart className={`h-4 w-4 mr-1 ${hasLiked ? 'fill-red-500 text-red-500' : ''}`} />
                 {discussion.likes} likes
-              </div>
+              </button>
               <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-1" />
                 {discussion.viewCount} views
@@ -408,12 +634,66 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
                               <p className="font-medium">{reply.author.name}</p>
                               <p className="text-xs text-gray-500">{formatTimeAgo(reply.createdAt)}</p>
                             </div>
-                            <Button variant="ghost" size="sm">
-                              <Heart className="h-4 w-4 mr-2" />
-                              {reply.likes}
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleLikeReply(reply.id)}
+                                className={likedReplies.has(reply.id) ? "text-red-600" : ""}
+                              >
+                                <Heart className={`h-4 w-4 mr-2 ${likedReplies.has(reply.id) ? 'fill-red-500' : ''}`} />
+                                {reply.likes}
+                              </Button>
+                              {user && user.id === reply.author.id && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStartEditReply(reply.id, reply.content)}
+                                  className="text-gray-600 hover:text-gray-700"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {user && (user.id === reply.author.id || user.role === 'admin' || user.role === 'moderator') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteReply(reply.id, reply.author.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-gray-700">{reply.content}</p>
+                          {editingReplyId === reply.id ? (
+                            <form onSubmit={handleSubmitEditReply} className="mt-4">
+                              <div className="flex gap-2">
+                                <Input
+                                  value={editReplyContent}
+                                  onChange={(e) => setEditReplyContent(e.target.value)}
+                                  className="flex-1"
+                                  placeholder="Edit your reply..."
+                                />
+                                <Button type="submit" disabled={editReplySubmitting} size="sm">
+                                  {editReplySubmitting ? "Saving..." : "Save"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleCancelEditReply}
+                                  size="sm"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {editReplyError && (
+                                <p className="text-sm text-red-600 mt-2">{editReplyError}</p>
+                              )}
+                            </form>
+                          ) : (
+                            <p className="text-gray-700">{reply.content}</p>
+                          )}
                         </div>
                       </div>
                     </CardContent>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { Cafe, Review } from "@/types"
+import { ImageUpload } from "@/components/image-upload"
 
 export default function CafeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
@@ -19,6 +20,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
   const [reviewTitle, setReviewTitle] = useState("")
   const [reviewContent, setReviewContent] = useState("")
   const [reviewRating, setReviewRating] = useState(5)
+  const [reviewImageUrl, setReviewImageUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const { user } = useAuth()
@@ -49,6 +51,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
         address: data.address,
         hours: data.hours,
         images: data.images,
+        image: data.image,
       })
     }
     setLoading(false)
@@ -74,6 +77,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
         userName: r.user_id, // Will be updated with profile name
         helpfulCount: r.helpful_count,
         createdAt: r.created_at,
+        image: r.image,
       })))
     }
   }
@@ -97,6 +101,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
         rating: reviewRating,
         title: reviewTitle,
         content: reviewContent,
+        image: reviewImageUrl,
       })
 
     if (error) {
@@ -106,6 +111,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
       setReviewTitle("")
       setReviewContent("")
       setReviewRating(5)
+      setReviewImageUrl(null)
       fetchReviews()
       fetchCafe() // To update review count
     }
@@ -144,6 +150,16 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
                 <span className="ml-2 text-gray-600">({cafe.reviewCount})</span>
               </div>
             </div>
+
+            {cafe.image && (
+              <div className="mb-6">
+                <img
+                  src={cafe.image}
+                  alt={cafe.name}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2 mb-6">
               {cafe.specialties.map((specialty) => (
@@ -250,6 +266,15 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Image (optional)
+                    </label>
+                    <ImageUpload
+                      onUploadComplete={(url) => setReviewImageUrl(url)}
+                      onUploadError={(error) => setSubmitError(error)}
+                    />
+                  </div>
                   {submitError && (
                     <p className="text-sm text-red-600">{submitError}</p>
                   )}
@@ -292,6 +317,13 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {review.image && (
+                      <img
+                        src={review.image}
+                        alt="Review image"
+                        className="w-full h-48 object-cover rounded-lg mb-4"
+                      />
+                    )}
                     <p className="text-gray-700 mb-4">{review.content}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <span>{new Date(review.createdAt).toLocaleDateString()}</span>

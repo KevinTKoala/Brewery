@@ -1,13 +1,36 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Coffee, Search, MessageSquare, Store, MapPin, User, LogOut } from "lucide-react"
+import { Coffee, Search, MessageSquare, Store, MapPin, User, LogOut, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
+import { supabase } from "@/lib/supabase"
 
 export function Navigation() {
   const { user, logout } = useAuth()
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (user) {
+      fetchAvatar()
+    }
+  }, [user])
+
+  const fetchAvatar = async () => {
+    if (!user) return
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .single()
+
+    if (profileData?.avatar_url) {
+      setAvatarUrl(profileData.avatar_url)
+    }
+  }
 
   return (
     <nav className="border-b bg-white sticky top-0 z-50">
@@ -31,6 +54,12 @@ export function Navigation() {
               <MessageSquare className="h-4 w-4" />
               <span>Discussions</span>
             </Link>
+            {user?.role === 'admin' && (
+              <Link href="/admin" className="flex items-center space-x-1 text-green-600 hover:text-green-700 transition-colors">
+                <Shield className="h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -44,13 +73,29 @@ export function Navigation() {
             </div>
             {user ? (
               <div className="flex items-center space-x-2">
-                <Link href="/profile" className="hidden sm:flex items-center space-x-1 text-sm text-gray-600 hover:text-green-600 transition-colors">
-                  <User className="h-4 w-4" />
+                <Link href="/profile" className="hidden sm:flex items-center space-x-2 text-sm text-gray-600 hover:text-green-600 transition-colors">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={user.name}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-4 w-4" />
+                  )}
                   <span>Profile</span>
                 </Link>
                 <Link href="/profile" className="sm:hidden">
                   <Button variant="ghost" size="icon" title="Profile">
-                    <User className="h-5 w-5" />
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={user.name}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
                   </Button>
                 </Link>
                 <Button variant="ghost" size="icon" onClick={logout} title="Logout">

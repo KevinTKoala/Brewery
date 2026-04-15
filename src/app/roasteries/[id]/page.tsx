@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { Roastery, Review } from "@/types"
+import { ImageUpload } from "@/components/image-upload"
 
 export default function RoasteryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
@@ -19,6 +20,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
   const [reviewTitle, setReviewTitle] = useState("")
   const [reviewContent, setReviewContent] = useState("")
   const [reviewRating, setReviewRating] = useState(5)
+  const [reviewImageUrl, setReviewImageUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const { user } = useAuth()
@@ -48,6 +50,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
         phone: data.phone,
         address: data.address,
         images: data.images,
+        image: data.image,
       })
     }
     setLoading(false)
@@ -73,6 +76,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
         userName: r.user_id, // Will be updated with profile name
         helpfulCount: r.helpful_count,
         createdAt: r.created_at,
+        image: r.image,
       })))
     }
   }
@@ -96,6 +100,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
         rating: reviewRating,
         title: reviewTitle,
         content: reviewContent,
+        image: reviewImageUrl,
       })
 
     if (error) {
@@ -105,6 +110,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       setReviewTitle("")
       setReviewContent("")
       setReviewRating(5)
+      setReviewImageUrl(null)
       fetchReviews()
       fetchRoastery() // To update review count
     }
@@ -143,6 +149,16 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
                 <span className="ml-2 text-gray-600">({roastery.reviewCount})</span>
               </div>
             </div>
+
+            {roastery.image && (
+              <div className="mb-6">
+                <img
+                  src={roastery.image}
+                  alt={roastery.name}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2 mb-6">
               {roastery.specialties.map((specialty) => (
@@ -255,6 +271,15 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Image (optional)
+                    </label>
+                    <ImageUpload
+                      onUploadComplete={(url) => setReviewImageUrl(url)}
+                      onUploadError={(error) => setSubmitError(error)}
+                    />
+                  </div>
                   {submitError && (
                     <p className="text-sm text-red-600">{submitError}</p>
                   )}
@@ -297,6 +322,13 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {review.image && (
+                      <img
+                        src={review.image}
+                        alt="Review image"
+                        className="w-full h-48 object-cover rounded-lg mb-4"
+                      />
+                    )}
                     <p className="text-gray-700 mb-4">{review.content}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <span>{new Date(review.createdAt).toLocaleDateString()}</span>
