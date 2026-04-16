@@ -121,7 +121,7 @@ export interface BrewingMethod {
 export interface CoffeeProduct {
   id: string
   name: string
-  category: 'beans' | 'equipment' | 'accessories' | 'merchandise'
+  category: 'beans' | 'equipment' | 'accessories'
   roasteryId?: string
   price: number
   description: string
@@ -130,6 +130,17 @@ export interface CoffeeProduct {
   averageRating: number
   reviewCount: number
   specifications?: Record<string, string>
+  externalLink?: string
+}
+
+export interface ProductReview {
+  id: string
+  productId: string
+  userId: string
+  rating: number
+  comment?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Equipment {

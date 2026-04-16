@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { Discussion, Reply } from "@/types"
+import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
 
 export default function DiscussionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
@@ -209,6 +210,13 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
       return
     }
 
+    // Check for banned words in reply content
+    const bannedWords = getBannedWords(replyContent)
+    if (bannedWords.length > 0) {
+      setSubmitError(`Your reply contains inappropriate language: ${bannedWords.join(', ')}. Please remove these words and try again.`)
+      return
+    }
+
     setSubmitting(true)
     setSubmitError("")
 
@@ -326,6 +334,13 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
     e.preventDefault()
     if (!user || !editingReplyId) return
 
+    // Check for banned words in edited reply content
+    const bannedWords = getBannedWords(editReplyContent)
+    if (bannedWords.length > 0) {
+      setEditReplyError(`Your reply contains inappropriate language: ${bannedWords.join(', ')}. Please remove these words and try again.`)
+      return
+    }
+
     setEditReplySubmitting(true)
     setEditReplyError("")
 
@@ -366,6 +381,16 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !discussion) return
+
+    // Check for banned words in edited title and content
+    const titleBannedWords = getBannedWords(editTitle)
+    const contentBannedWords = getBannedWords(editContent)
+
+    if (titleBannedWords.length > 0 || contentBannedWords.length > 0) {
+      const allBannedWords = [...new Set([...titleBannedWords, ...contentBannedWords])]
+      setEditError(`Your discussion contains inappropriate language: ${allBannedWords.join(', ')}. Please remove these words and try again.`)
+      return
+    }
 
     setEditSubmitting(true)
     setEditError("")
@@ -727,6 +752,11 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
           <Card>
             <CardContent className="p-6">
               <h3 className="font-semibold mb-4">Add a Reply</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                <p className="text-sm text-blue-800">
+                  <span className="font-semibold">Please be respectful:</span> Keep replies friendly and constructive. We're all here to share our love for coffee!
+                </p>
+              </div>
               <form onSubmit={handleSubmitReply}>
                 <div className="flex gap-4">
                   <div className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">

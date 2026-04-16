@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Coffee, Search, MessageSquare, Store, MapPin, User, LogOut, Shield } from "lucide-react"
+import { Coffee, Search, MessageSquare, Store, MapPin, User, LogOut, Shield, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
@@ -49,6 +49,10 @@ export function Navigation() {
             <Link href="/cafes" className="flex items-center space-x-1 text-gray-600 hover:text-green-600 transition-colors">
               <MapPin className="h-4 w-4" />
               <span>Cafes</span>
+            </Link>
+            <Link href="/marketplace" className="flex items-center space-x-1 text-gray-600 hover:text-green-600 transition-colors">
+              <ShoppingBag className="h-4 w-4" />
+              <span>Marketplace</span>
             </Link>
             <Link href="/discussions" className="flex items-center space-x-1 text-gray-600 hover:text-green-600 transition-colors">
               <MessageSquare className="h-4 w-4" />

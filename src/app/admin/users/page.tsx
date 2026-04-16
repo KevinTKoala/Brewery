@@ -16,7 +16,7 @@ interface UserProfile {
   email: string
   role: 'admin' | 'moderator' | 'user'
   joined_at: string
-  avatar: string | null
+  avatar_url: string | null
 }
 
 export default function AdminUsersPage() {
@@ -52,7 +52,7 @@ export default function AdminUsersPage() {
         email: u.email,
         role: u.role || 'user',
         joined_at: u.joined_at,
-        avatar: u.avatar,
+        avatar_url: u.avatar_url,
       })))
     }
     setLoading(false)
@@ -157,8 +157,8 @@ export default function AdminUsersPage() {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                            {userProfile.avatar ? (
-                              <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                            {userProfile.avatar_url ? (
+                              <img src={userProfile.avatar_url} alt={userProfile.name} className="w-full h-full object-cover" />
                             ) : (
                               <User className="h-5 w-5 text-gray-500" />
                             )}

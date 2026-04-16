@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Users, MessageSquare, Store, Coffee, TrendingUp, Shield } from "lucide-react"
+import { Users, MessageSquare, Store, Coffee, TrendingUp, Shield, ShoppingBag } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
@@ -18,6 +18,7 @@ export default function AdminDashboardPage() {
     totalRoasteries: 0,
     totalCafes: 0,
     totalReplies: 0,
+    totalProducts: 0,
   })
 
   useEffect(() => {
@@ -31,12 +32,13 @@ export default function AdminDashboardPage() {
   const fetchStats = async () => {
     setLoading(true)
 
-    const [usersRes, discussionsRes, roasteriesRes, cafesRes, repliesRes] = await Promise.all([
+    const [usersRes, discussionsRes, roasteriesRes, cafesRes, repliesRes, productsRes] = await Promise.all([
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('discussions').select('id', { count: 'exact', head: true }),
       supabase.from('roasteries').select('id', { count: 'exact', head: true }),
       supabase.from('cafes').select('id', { count: 'exact', head: true }),
       supabase.from('replies').select('id', { count: 'exact', head: true }),
+      supabase.from('coffee_products').select('id', { count: 'exact', head: true }),
     ])
 
     setStats({
@@ -45,6 +47,7 @@ export default function AdminDashboardPage() {
       totalRoasteries: roasteriesRes.count || 0,
       totalCafes: cafesRes.count || 0,
       totalReplies: repliesRes.count || 0,
+      totalProducts: productsRes.count || 0,
     })
 
     setLoading(false)
@@ -126,6 +129,16 @@ export default function AdminDashboardPage() {
               <div className="text-3xl font-bold">{stats.totalCafes}</div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Products</CardTitle>
+              <ShoppingBag className="h-4 w-4 text-gray-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats.totalProducts}</div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -134,17 +147,21 @@ export default function AdminDashboardPage() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/discussions')}>
+              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/discussions')}>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Manage Discussions
               </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/roasteries')}>
+              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/roasteries')}>
                 <Coffee className="h-4 w-4 mr-2" />
                 Manage Roasteries
               </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/cafes')}>
+              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/cafes')}>
                 <Store className="h-4 w-4 mr-2" />
                 Manage Cafes
+              </Button>
+              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/marketplace')}>
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Manage Marketplace
               </Button>
               <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/users')}>
                 <Users className="h-4 w-4 mr-2" />

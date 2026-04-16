@@ -54,11 +54,13 @@ We believe every coffee lover deserves easy access to quality coffee information
 - Sort discussions by newest, most replies, or most likes
 - Expandable filter panels for better UX
 
-### 🛒 Coming Soon
-- Coffee bean marketplace with direct roastery purchases
-- Equipment reviews and recommendations
-- Brewing method guides and tutorials
-- Image upload functionality
+### 🛒 Coffee Marketplace
+- Browse coffee products (beans, equipment, accessories)
+- View product details with scrollable image galleries
+- Product specifications and descriptions
+- Community product reviews and ratings
+- External product links (e.g., Shopee)
+- Filter by category and search functionality
 
 ### 🗺️ Google Maps Integration (Future)
 - Search and add cafes/roasteries via Google Places API
@@ -142,10 +144,16 @@ brewery/
 │   │   ├── profile/      # User profile page
 │   │   ├── roasteries/   # Roastery listing and detail pages
 │   │   ├── cafes/        # Cafe listing and detail pages
-│   │   └── discussions/  # Discussion forum
+│   │   ├── discussions/  # Discussion forum
+│   │   ├── marketplace/  # Coffee marketplace (products, reviews)
+│   │   └── admin/        # Admin dashboard
 │   ├── components/       # Reusable UI components
 │   ├── lib/             # Utility functions, auth context, and Supabase client
 │   └── types/           # TypeScript type definitions
+├── supabase/            # Database schema and migrations
+│   ├── coffee_products.sql
+│   ├── product_reviews.sql
+│   └── ...
 ├── data-contribution.json # Community contribution data
 ├── screenshots/          # App screenshots
 └── README.md
@@ -170,9 +178,15 @@ brewery/
 - [x] Unique view count tracking per user
 - [x] Authentication protection for roasteries, cafes, and discussions pages
 - [x] Admin user management (view, edit roles, delete users)
+- [x] Admin management for roasteries, cafes, discussions, and marketplace
+- [x] Coffee marketplace with product listings and detail pages
+- [x] Product review submission and display system
+- [x] Scrollable image galleries for products
+- [x] Product specifications and descriptions
+- [x] External product links
 
 ### In Progress 🚧
-- [ ] Coffee bean marketplace
+- [ ] Equipment reviews and ratings
 
 ### Planned 📋
 - [ ] Equipment reviews and ratings

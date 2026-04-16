@@ -11,6 +11,7 @@ import Link from "next/link"
 import { Discussion } from "@/types"
 import { useRouter } from "next/navigation"
 import { ImageUpload } from "@/components/image-upload"
+import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
 
 export default function DiscussionsPage() {
   const { user, loading } = useAuth()
@@ -94,6 +95,16 @@ export default function DiscussionsPage() {
     e.preventDefault()
     if (!user) {
       setSubmitError("Please log in to submit a discussion")
+      return
+    }
+
+    // Check for banned words in title and content
+    const titleBannedWords = getBannedWords(discussionTitle)
+    const contentBannedWords = getBannedWords(discussionContent)
+
+    if (titleBannedWords.length > 0 || contentBannedWords.length > 0) {
+      const allBannedWords = [...new Set([...titleBannedWords, ...contentBannedWords])]
+      setSubmitError(`Your discussion contains inappropriate language: ${allBannedWords.join(', ')}. Please remove these words and try again.`)
       return
     }
 
@@ -224,6 +235,11 @@ export default function DiscussionsPage() {
                 <CardTitle>Create New Discussion</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-semibold">Please be respectful:</span> Keep discussions friendly and constructive. We're all here to share our love for coffee!
+                  </p>
+                </div>
                 <form onSubmit={handleSubmitDiscussion} className="space-y-4">
                   <div>
                     <label htmlFor="title" className="text-sm font-medium mb-2 block">

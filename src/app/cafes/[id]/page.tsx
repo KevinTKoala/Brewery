@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { Cafe, Review } from "@/types"
 import { ImageUpload } from "@/components/image-upload"
+import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
 
 export default function CafeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
@@ -115,6 +116,16 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
     e.preventDefault()
     if (!user) {
       setSubmitError("Please log in to submit a review")
+      return
+    }
+
+    // Check for banned words in review title and content
+    const titleBannedWords = getBannedWords(reviewTitle)
+    const contentBannedWords = getBannedWords(reviewContent)
+
+    if (titleBannedWords.length > 0 || contentBannedWords.length > 0) {
+      const allBannedWords = [...new Set([...titleBannedWords, ...contentBannedWords])]
+      setSubmitError(`Your review contains inappropriate language: ${allBannedWords.join(', ')}. Please remove these words and try again.`)
       return
     }
 
