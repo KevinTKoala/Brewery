@@ -35,6 +35,9 @@ export default function AdminDiscussionsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedDiscussion, setSelectedDiscussion] = useState<Discussion | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedDiscussionToDelete, setSelectedDiscussionToDelete] = useState<string | null>(null)
+  const [deletionReason, setDeletionReason] = useState("")
   const [updating, setUpdating] = useState(false)
   const [editForm, setEditForm] = useState({
     title: "",
@@ -44,7 +47,7 @@ export default function AdminDiscussionsPage() {
   })
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
       router.push('/')
       return
     }
@@ -86,18 +89,71 @@ export default function AdminDiscussionsPage() {
   )
 
   const handleDeleteDiscussion = async (discussionId: string) => {
-    if (!confirm('Are you sure you want to delete this discussion? This action cannot be undone.')) {
+    setSelectedDiscussionToDelete(discussionId)
+    setDeletionReason("")
+    setShowDeleteModal(true)
+  }
+
+  const confirmDeleteDiscussion = async () => {
+    if (!selectedDiscussionToDelete || !deletionReason.trim()) {
+      alert('Please provide a deletion reason')
       return
     }
+
+    // Get discussion details before deletion
+    const { data: discussionData, error: fetchError } = await supabase
+      .from('discussions')
+      .select('*')
+      .eq('id', selectedDiscussionToDelete)
+      .single()
+
+    if (fetchError) {
+      alert('Failed to fetch discussion details: ' + fetchError.message)
+      return
+    }
+
+    // Log deletion
+    const { error: logError } = await supabase
+      .from('deletion_log')
+      .insert({
+        item_id: selectedDiscussionToDelete,
+        item_type: 'discussion',
+        deletion_reason: deletionReason.trim(),
+        deleted_by: user?.id,
+        original_title: discussionData.title,
+        original_content: discussionData.content,
+        author_id: discussionData.author_id
+      })
+
+    if (logError) {
+      alert('Failed to log deletion: ' + logError.message)
+      return
+    }
+
+    // Send notification to user
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: discussionData.author_id,
+        type: 'deletion',
+        title: 'Your discussion was deleted',
+        message: `Your discussion "${discussionData.title}" has been deleted. Reason: ${deletionReason.trim()}`,
+        related_item_type: 'discussion',
+        related_item_id: selectedDiscussionToDelete,
+        deletion_reason: deletionReason.trim()
+      })
 
     const { error } = await supabase
       .from('discussions')
       .delete()
-      .eq('id', discussionId)
+      .eq('id', selectedDiscussionToDelete)
 
     if (error) {
       alert('Failed to delete discussion: ' + error.message)
     } else {
+      setShowDeleteModal(false)
+      setSelectedDiscussionToDelete(null)
+      setDeletionReason("")
       fetchDiscussions()
     }
   }
@@ -302,6 +358,39 @@ export default function AdminDiscussionsPage() {
                   </Button>
                   <Button onClick={handleUpdateDiscussion} disabled={updating}>
                     {updating ? 'Updating...' : 'Update Discussion'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Discussion Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Delete Discussion</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Deletion Reason *</label>
+                  <textarea
+                    value={deletionReason}
+                    onChange={(e) => setDeletionReason(e.target.value)}
+                    placeholder="Please provide a reason for deleting this discussion..."
+                    className="w-full px-3 py-2 border rounded-md min-h-24"
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={confirmDeleteDiscussion}>
+                    Delete Discussion
                   </Button>
                 </div>
               </div>

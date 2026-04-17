@@ -2,18 +2,17 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Users, MessageSquare, Store, Coffee, TrendingUp, Shield, ShoppingBag, Trash2 } from "lucide-react"
+import { MessageSquare, Coffee, Store, ShoppingBag, Shield } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 
-export default function AdminDashboardPage() {
+export default function ModeratorDashboardPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    totalUsers: 0,
     totalDiscussions: 0,
     totalRoasteries: 0,
     totalCafes: 0,
@@ -22,7 +21,7 @@ export default function AdminDashboardPage() {
   })
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
       router.push('/')
       return
     }
@@ -32,8 +31,7 @@ export default function AdminDashboardPage() {
   const fetchStats = async () => {
     setLoading(true)
 
-    const [usersRes, discussionsRes, roasteriesRes, cafesRes, repliesRes, productsRes] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+    const [discussionsRes, roasteriesRes, cafesRes, repliesRes, productsRes] = await Promise.all([
       supabase.from('discussions').select('id', { count: 'exact', head: true }),
       supabase.from('roasteries').select('id', { count: 'exact', head: true }),
       supabase.from('cafes').select('id', { count: 'exact', head: true }),
@@ -42,7 +40,6 @@ export default function AdminDashboardPage() {
     ])
 
     setStats({
-      totalUsers: usersRes.count || 0,
       totalDiscussions: discussionsRes.count || 0,
       totalRoasteries: roasteriesRes.count || 0,
       totalCafes: cafesRes.count || 0,
@@ -67,12 +64,12 @@ export default function AdminDashboardPage() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-              <p className="text-gray-600">Manage your Brewery platform</p>
+              <h1 className="text-4xl font-bold mb-2">Moderator Dashboard</h1>
+              <p className="text-gray-600">Moderate and manage content on Brewery</p>
             </div>
-            <div className="flex items-center gap-2 bg-green-100 px-3 py-2 rounded-full">
-              <Shield className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-700">Admin</span>
+            <div className="flex items-center gap-2 bg-blue-100 px-3 py-2 rounded-full">
+              <Shield className="h-5 w-5 text-blue-600" />
+              <span className="font-medium text-blue-700">Moderator</span>
             </div>
           </div>
         </div>
@@ -80,16 +77,6 @@ export default function AdminDashboardPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-gray-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.totalUsers}</div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Discussions</CardTitle>
@@ -103,7 +90,7 @@ export default function AdminDashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Replies</CardTitle>
-              <TrendingUp className="h-4 w-4 text-gray-600" />
+              <MessageSquare className="h-4 w-4 text-gray-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{stats.totalReplies}</div>
@@ -144,7 +131,7 @@ export default function AdminDashboardPage() {
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>Moderation Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/discussions')}>
@@ -162,14 +149,6 @@ export default function AdminDashboardPage() {
               <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/marketplace')}>
                 <ShoppingBag className="h-4 w-4 mr-2" />
                 Manage Marketplace
-              </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/users')}>
-                <Users className="h-4 w-4 mr-2" />
-                Manage Users
-              </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/deletion-log')}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                View Deletion Log
               </Button>
             </CardContent>
           </Card>
@@ -199,7 +178,7 @@ export default function AdminDashboardPage() {
               </div>
               <div className="pt-4 border-t">
                 <p className="text-sm text-gray-600">
-                  Admin features coming soon: User management, content moderation, analytics dashboard.
+                  As a moderator, you can manage discussions, roasteries, cafes, and marketplace content. User management is reserved for admins.
                 </p>
               </div>
             </CardContent>

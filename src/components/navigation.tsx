@@ -58,6 +58,12 @@ export function Navigation() {
               <MessageSquare className="h-4 w-4" />
               <span>Discussions</span>
             </Link>
+            {(user?.role === 'admin' || user?.role === 'moderator') && (
+              <Link href="/moderator" className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 transition-colors">
+                <Shield className="h-4 w-4" />
+                <span>Moderator</span>
+              </Link>
+            )}
             {user?.role === 'admin' && (
               <Link href="/admin" className="flex items-center space-x-1 text-green-600 hover:text-green-700 transition-colors">
                 <Shield className="h-4 w-4" />

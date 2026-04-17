@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, ShoppingBag, Star, MessageSquare, Heart, Share2, ExternalLink } from "lucide-react"
+import { ArrowLeft, ShoppingBag, Star, MessageSquare, Heart, Share2, ExternalLink, Edit2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CoffeeProduct, ProductReview } from "@/types"
@@ -25,6 +25,13 @@ export default function ProductDetailPage() {
     comment: ""
   })
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [showEditReviewModal, setShowEditReviewModal] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<ProductReview | null>(null)
+  const [reviewEditForm, setReviewEditForm] = useState({
+    rating: 5,
+    comment: ""
+  })
+  const [updatingReview, setUpdatingReview] = useState(false)
 
   useEffect(() => {
     fetchProduct()
@@ -152,6 +159,38 @@ export default function ProductDetailPage() {
     } finally {
       setSubmittingReview(false)
     }
+  }
+
+  const openEditReviewModal = (review: ProductReview) => {
+    setSelectedReview(review)
+    setReviewEditForm({
+      rating: review.rating,
+      comment: review.comment
+    })
+    setShowEditReviewModal(true)
+  }
+
+  const handleUpdateReview = async () => {
+    if (!selectedReview) return
+
+    setUpdatingReview(true)
+    const { error } = await supabase
+      .from('product_reviews')
+      .update({
+        rating: reviewEditForm.rating,
+        comment: reviewEditForm.comment
+      })
+      .eq('id', selectedReview.id)
+
+    if (error) {
+      alert('Failed to update review: ' + error.message)
+    } else {
+      setShowEditReviewModal(false)
+      setSelectedReview(null)
+      fetchReviews()
+      fetchProduct() // Refresh product to get updated rating
+    }
+    setUpdatingReview(false)
   }
 
   if (loading) {
@@ -390,20 +429,42 @@ export default function ProductDetailPage() {
                           </div>
                         )}
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{review.user?.username || 'Anonymous'}</span>
-                            <div className="flex">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  className={`h-4 w-4 ${
-                                    star <= review.rating
-                                      ? 'text-yellow-500 fill-yellow-500'
-                                      : 'text-gray-300'
-                                  }`}
-                                />
-                              ))}
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{review.user?.username || 'Anonymous'}</span>
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`h-4 w-4 ${
+                                      star <= review.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
                             </div>
+                            {(user?.role === 'admin' || user?.role === 'moderator') && (
+                              <div className="flex gap-2">
+                                {user?.role === 'admin' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openEditReviewModal(review)}
+                                  >
+                                    <Edit2 className="h-4 w-4 text-blue-500" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => alert('Delete functionality coming soon')}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                           {review.comment && (
                             <p className="text-gray-700 text-sm">{review.comment}</p>
@@ -419,6 +480,58 @@ export default function ProductDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Edit Review Modal */}
+          {showEditReviewModal && selectedReview && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Edit Review</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Rating</label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewEditForm({ ...reviewEditForm, rating: star })}
+                            className="focus:outline-none"
+                          >
+                            <Star
+                              className={`h-8 w-8 ${
+                                star <= reviewEditForm.rating
+                                  ? 'text-yellow-500 fill-yellow-500'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Comment</label>
+                      <textarea
+                        value={reviewEditForm.comment}
+                        onChange={(e) => setReviewEditForm({ ...reviewEditForm, comment: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md min-h-24"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowEditReviewModal(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleUpdateReview} disabled={updatingReview}>
+                        {updatingReview ? 'Updating...' : 'Update Review'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
     </div>

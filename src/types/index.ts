@@ -38,6 +38,7 @@ export interface Cafe {
   hours?: string
   images: string[]
   image?: string
+  googleMapsLink?: string
 }
 
 export interface Review {
@@ -52,6 +53,7 @@ export interface Review {
   createdAt: string
   helpfulCount: number
   image?: string
+  helpfulUsers?: string[]
 }
 
 export interface Discussion {

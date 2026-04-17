@@ -95,10 +95,6 @@ We believe every coffee lover deserves easy access to quality coffee information
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/brewery.git
-cd brewery
-
 # Install dependencies
 npm install
 
@@ -108,30 +104,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-## 🤝 Contributing
-
-We welcome contributions from coffee enthusiasts of all levels! Here's how you can help:
-
-### Easy Contributions (Great for Beginners!)
-- **Add your favorite roastery or cafe** - Simply edit `data-contribution.json` with the details and submit a PR
-- **Fix typos** - Spot a spelling mistake? Fix it!
-- **Improve documentation** - Help make our README clearer
-
-### Code Contributions
-- **Build new features** - Check our roadmap for planned features
-- **Fix bugs** - Help squash issues in the issue tracker
-- **Improve UI/UX** - Make the app more beautiful and user-friendly
-- **Add tests** - Help us ensure code quality
-
-### How to Contribute
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-**Want to see your favorite roastery on the site? Submit a PR adding it to `data-contribution.json`!**
 
 ## 📋 Project Structure
 
@@ -154,7 +126,6 @@ brewery/
 │   ├── coffee_products.sql
 │   ├── product_reviews.sql
 │   └── ...
-├── data-contribution.json # Community contribution data
 ├── screenshots/          # App screenshots
 └── README.md
 ```
@@ -196,23 +167,13 @@ brewery/
 - [ ] Mobile app
 - [ ] Internationalization support
 
-## 🌟 Why Contribute?
-
-- **Impact** - Help thousands of coffee lovers discover great coffee
-- **Learn** - Gain experience with modern web technologies
-- **Community** - Join a passionate community of coffee enthusiasts
-- **Portfolio** - Build your open source contribution history
-- **Fun** - Work on something you're passionate about!
-
 ## 📝 License
 
-ISC
+Copyright © 2026 [KevinTKoala]. All rights reserved. This code is solely for development and is not licensed for public use or distribution.
 
 ## 📧 Contact
 
-Have questions or suggestions? Open an issue or reach out to us.
-
-Discord @arrz.ryn
+Have questions or suggestions? Reach out via Discord @arrz.ryn
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Search, ShoppingBag, Plus, Edit2, Trash2, Eye } from "lucide-react"
+import { ArrowLeft, Search, ShoppingBag, Plus, Edit2, Trash2, Eye, Star, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -35,6 +35,18 @@ export default function AdminMarketplacePage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [reviews, setReviews] = useState<any[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [showEditReviewModal, setShowEditReviewModal] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<any>(null)
+  const [reviewEditForm, setReviewEditForm] = useState({
+    rating: 5,
+    comment: ""
+  })
+  const [updatingReview, setUpdatingReview] = useState(false)
+  const [showDeleteReviewModal, setShowDeleteReviewModal] = useState(false)
+  const [deletionReason, setDeletionReason] = useState("")
 
   const categories = ["all", "beans", "equipment", "accessories"]
 
@@ -53,7 +65,7 @@ export default function AdminMarketplacePage() {
   })
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
       router.push('/')
       return
     }
@@ -123,6 +135,151 @@ export default function AdminMarketplacePage() {
       reviewCount: product.reviewCount.toString(),
     })
     setShowAddModal(true)
+  }
+
+  const handleViewReviews = async (product: Product) => {
+    setSelectedProduct(product)
+    setReviewsLoading(true)
+    const { data: reviewsData, error } = await supabase
+      .from('product_reviews')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching reviews:', error)
+      setReviews([])
+    } else if (reviewsData) {
+      const userIds = [...new Set(reviewsData.map((r: any) => r.user_id))]
+      let profilesMap = new Map()
+
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .in('id', userIds)
+
+        profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]) || [])
+      }
+
+      setReviews(reviewsData.map((r: any) => ({
+        ...r,
+        user: profilesMap.get(r.user_id)
+      })))
+    } else {
+      setReviews([])
+    }
+    setReviewsLoading(false)
+  }
+
+  const openEditReviewModal = (review: any) => {
+    setSelectedReview(review)
+    setReviewEditForm({
+      rating: review.rating,
+      comment: review.comment
+    })
+    setShowEditReviewModal(true)
+  }
+
+  const handleUpdateReview = async () => {
+    if (!selectedReview) return
+
+    setUpdatingReview(true)
+    const { error } = await supabase
+      .from('product_reviews')
+      .update({
+        rating: reviewEditForm.rating,
+        comment: reviewEditForm.comment
+      })
+      .eq('id', selectedReview.id)
+
+    if (error) {
+      alert('Failed to update review: ' + error.message)
+    } else {
+      setShowEditReviewModal(false)
+      setSelectedReview(null)
+      if (selectedProduct) {
+        handleViewReviews(selectedProduct)
+      }
+    }
+    setUpdatingReview(false)
+  }
+
+  const handleDeleteReview = async (reviewId: string) => {
+    setSelectedReview(reviews.find(r => r.id === reviewId))
+    setShowDeleteReviewModal(true)
+  }
+
+  const confirmDeleteReview = async () => {
+    if (!selectedReview || !deletionReason.trim()) {
+      alert('Please provide a deletion reason')
+      return
+    }
+
+    // Fetch review details before deletion
+    const { data: reviewData } = await supabase
+      .from('product_reviews')
+      .select('*')
+      .eq('id', selectedReview.id)
+      .single()
+
+    if (!reviewData) {
+      alert('Failed to fetch review details')
+      return
+    }
+
+    // Log to deletion_log
+    const { error: logError } = await supabase
+      .from('deletion_log')
+      .insert({
+        item_id: selectedReview.id,
+        item_type: 'review',
+        deletion_reason: deletionReason,
+        deleted_by: user.id,
+        original_title: `Product Review - Rating: ${reviewData.rating}`,
+        original_content: reviewData.comment,
+        author_id: reviewData.user_id
+      })
+
+    if (logError) {
+      console.error('Error logging deletion:', logError)
+    }
+
+    // Send notification to user
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: reviewData.user_id,
+        type: 'deletion',
+        title: 'Your product review was deleted',
+        message: `Your review for the product has been deleted by an administrator. Reason: ${deletionReason}`,
+        related_item_type: 'review',
+        related_item_id: selectedReview.id,
+        deletion_reason: deletionReason
+      })
+
+    if (notificationError) {
+      console.error('Error sending notification:', notificationError.message || notificationError)
+      // Continue with deletion even if notification fails
+    }
+
+    // Delete the review
+    const { error } = await supabase
+      .from('product_reviews')
+      .delete()
+      .eq('id', selectedReview.id)
+
+    if (error) {
+      alert('Failed to delete review: ' + error.message)
+    } else {
+      setShowDeleteReviewModal(false)
+      setSelectedReview(null)
+      setDeletionReason("")
+      if (selectedProduct) {
+        handleViewReviews(selectedProduct)
+      }
+      fetchProducts() // Refresh to update product rating
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -332,7 +489,16 @@ export default function AdminMarketplacePage() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => handleViewReviews(product)}
+                            title="View Reviews"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => router.push(`/marketplace/${product.id}`)}
+                            title="View Product"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -340,6 +506,7 @@ export default function AdminMarketplacePage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEdit(product)}
+                            title="Edit Product"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -347,6 +514,7 @@ export default function AdminMarketplacePage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(product.id)}
+                            title="Delete Product"
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
@@ -359,6 +527,90 @@ export default function AdminMarketplacePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Reviews Section */}
+        {selectedProduct && (
+          <Card className="mt-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Reviews for {selectedProduct.name}</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setSelectedProduct(null)}>
+                  Close
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {reviewsLoading ? (
+                <p className="text-gray-500 text-center py-8">Loading reviews...</p>
+              ) : reviews.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No reviews yet for this product.</p>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b pb-4 last:border-b-0">
+                      <div className="flex items-start gap-3">
+                        {review.user?.avatar_url ? (
+                          <img
+                            src={review.user.avatar_url}
+                            alt={review.user.username}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <ShoppingBag className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{review.user?.username || 'Anonymous'}</span>
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`h-4 w-4 ${
+                                      star <= review.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {user?.role === 'admin' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditReviewModal(review)}
+                                >
+                                  <Edit2 className="h-4 w-4 text-blue-500" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteReview(review.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-gray-700 text-sm">{review.comment}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Add/Edit Modal */}
@@ -488,6 +740,94 @@ export default function AdminMarketplacePage() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Review Modal */}
+      {showEditReviewModal && selectedReview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Edit Review</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Rating</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewEditForm({ ...reviewEditForm, rating: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`h-8 w-8 ${
+                            star <= reviewEditForm.rating
+                              ? 'text-yellow-500 fill-yellow-500'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Comment</label>
+                  <textarea
+                    value={reviewEditForm.comment}
+                    onChange={(e) => setReviewEditForm({ ...reviewEditForm, comment: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md min-h-24"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setShowEditReviewModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleUpdateReview} disabled={updatingReview}>
+                    {updatingReview ? 'Updating...' : 'Update Review'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Review Modal */}
+      {showDeleteReviewModal && selectedReview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Delete Review</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to delete this review? This action cannot be undone.
+                </p>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Deletion Reason *</label>
+                  <textarea
+                    value={deletionReason}
+                    onChange={(e) => setDeletionReason(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md min-h-24"
+                    placeholder="Please provide a reason for deleting this review..."
+                    required
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setShowDeleteReviewModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={confirmDeleteReview} className="bg-red-600 hover:bg-red-700">
+                    Delete Review
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

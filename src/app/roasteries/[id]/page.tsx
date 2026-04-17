@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react"
 import { notFound } from "next/navigation"
 import { useRouter } from "next/navigation"
-import { Star, MapPin, Phone, Globe, ExternalLink, ThumbsUp } from "lucide-react"
+import { Star, MapPin, Phone, Globe, ExternalLink, ThumbsUp, Edit2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -46,6 +46,16 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
   const [reviewImageUrl, setReviewImageUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
+  const [showEditReviewModal, setShowEditReviewModal] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
+  const [reviewEditForm, setReviewEditForm] = useState({
+    rating: 5,
+    title: "",
+    content: ""
+  })
+  const [updatingReview, setUpdatingReview] = useState(false)
+  const [showDeleteReviewModal, setShowDeleteReviewModal] = useState(false)
+  const [deletionReason, setDeletionReason] = useState("")
 
   const fetchRoastery = async () => {
     const { data, error } = await supabase
@@ -156,6 +166,98 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
     }
 
     setSubmitting(false)
+  }
+
+  const handleUpdateReview = async () => {
+    if (!selectedReview) return
+
+    setUpdatingReview(true)
+    const { error } = await supabase
+      .from('reviews')
+      .update({
+        rating: reviewEditForm.rating,
+        title: reviewEditForm.title,
+        content: reviewEditForm.content
+      })
+      .eq('id', selectedReview.id)
+
+    if (error) {
+      alert('Failed to update review: ' + error.message)
+    } else {
+      setShowEditReviewModal(false)
+      setSelectedReview(null)
+      fetchReviews()
+      fetchRoastery()
+    }
+    setUpdatingReview(false)
+  }
+
+  const confirmDeleteReview = async () => {
+    if (!selectedReview || !deletionReason.trim()) {
+      alert('Please provide a deletion reason')
+      return
+    }
+
+    // First update the review with deletion_reason
+    const { error: updateError } = await supabase
+      .from('reviews')
+      .update({ deletion_reason: deletionReason })
+      .eq('id', selectedReview.id)
+
+    if (updateError) {
+      alert('Failed to update review with deletion reason: ' + updateError.message)
+      return
+    }
+
+    // Then delete the review
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', selectedReview.id)
+
+    if (error) {
+      alert('Failed to delete review: ' + error.message)
+    } else {
+      // Log to deletion_log
+      const { error: logError } = await supabase
+        .from('deletion_log')
+        .insert({
+          item_type: 'review',
+          item_id: selectedReview.id,
+          deletion_reason: deletionReason,
+          deleted_by: user?.id,
+          original_title: selectedReview.title,
+          original_content: selectedReview.content,
+          author_id: selectedReview.user_id
+        })
+
+      if (logError) {
+        console.error('Failed to log deletion:', logError.message || logError)
+      }
+
+      // Send notification to user
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: selectedReview.user_id,
+          type: 'deletion',
+          title: 'Your review has been deleted',
+          message: `Your review "${selectedReview.title}" for ${roastery?.name || 'a roastery'} has been deleted. Reason: ${deletionReason}`,
+          related_item_id: selectedReview.id,
+          related_item_type: 'review',
+          deletion_reason: deletionReason
+        })
+
+      if (notificationError) {
+        console.error('Failed to send notification:', notificationError.message || notificationError)
+      }
+
+      setShowDeleteReviewModal(false)
+      setSelectedReview(null)
+      setDeletionReason("")
+      fetchReviews()
+      fetchRoastery()
+    }
   }
 
   if (dataLoading) {
@@ -347,17 +449,50 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
                         <CardTitle className="text-lg">{review.title}</CardTitle>
                         <p className="text-sm text-gray-600 mt-1">by {review.userName}</p>
                       </div>
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-5 w-5 ${
-                              i < review.rating
-                                ? "text-yellow-600 fill-yellow-600"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`h-5 w-5 ${
+                                i < review.rating
+                                  ? "text-yellow-600 fill-yellow-600"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        {(user?.role === 'admin' || user?.role === 'moderator') && (
+                          <div className="flex gap-1">
+                            {user?.role === 'admin' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedReview(review)
+                                  setReviewEditForm({
+                                    rating: review.rating,
+                                    title: review.title,
+                                    content: review.content
+                                  })
+                                  setShowEditReviewModal(true)
+                                }}
+                              >
+                                <Edit2 className="h-4 w-4 text-blue-500" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedReview(review)
+                                setShowDeleteReviewModal(true)
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -380,6 +515,101 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {/* Edit Review Modal */}
+          {showEditReviewModal && selectedReview && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Edit Review</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Rating</label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            type="button"
+                            onClick={() => setReviewEditForm({ ...reviewEditForm, rating })}
+                            className="focus:outline-none"
+                          >
+                            <Star
+                              className={`h-8 w-8 ${
+                                rating <= reviewEditForm.rating
+                                  ? 'text-yellow-600 fill-yellow-600'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Title</label>
+                      <Input
+                        value={reviewEditForm.title}
+                        onChange={(e) => setReviewEditForm({ ...reviewEditForm, title: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Content</label>
+                      <textarea
+                        value={reviewEditForm.content}
+                        onChange={(e) => setReviewEditForm({ ...reviewEditForm, content: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md min-h-24"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowEditReviewModal(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleUpdateReview} disabled={updatingReview}>
+                        {updatingReview ? 'Updating...' : 'Update Review'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Delete Review Modal */}
+          {showDeleteReviewModal && selectedReview && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Delete Review</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      Are you sure you want to delete this review? This action cannot be undone.
+                    </p>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Deletion Reason *</label>
+                      <textarea
+                        value={deletionReason}
+                        onChange={(e) => setDeletionReason(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md min-h-24"
+                        placeholder="Please provide a reason for deleting this review..."
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowDeleteReviewModal(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={confirmDeleteReview} className="bg-red-600 hover:bg-red-700">
+                        Delete Review
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>

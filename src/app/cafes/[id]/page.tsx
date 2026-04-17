@@ -20,6 +20,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
   const [cafe, setCafe] = useState<Cafe | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [helpfulReviews, setHelpfulReviews] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!loading && !user) {
@@ -69,6 +70,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
         hours: data.hours,
         images: data.images,
         image: data.image,
+        googleMapsLink: data.google_maps_link,
       })
     }
     setDataLoading(false)
@@ -83,19 +85,28 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
       .order('created_at', { ascending: false })
 
     if (data) {
-      setReviews(data.map((r: any) => ({
-        id: r.id,
-        userId: r.user_id,
-        targetId: r.target_id,
-        targetType: r.target_type,
-        rating: r.rating,
-        title: r.title,
-        content: r.content,
-        userName: r.user_id, // Will be updated with profile name
-        helpfulCount: r.helpful_count,
-        createdAt: r.created_at,
-        image: r.image,
-      })))
+      const helpfulSet = new Set<string>()
+      setReviews(data.map((r: any) => {
+        // Check if current user has marked this review as helpful
+        if (user && r.helpful_users && r.helpful_users.includes(user.id)) {
+          helpfulSet.add(r.id)
+        }
+        return {
+          id: r.id,
+          userId: r.user_id,
+          targetId: r.target_id,
+          targetType: r.target_type,
+          rating: r.rating,
+          title: r.title,
+          content: r.content,
+          userName: r.user_id, // Will be updated with profile name
+          helpfulCount: r.helpful_count,
+          createdAt: r.created_at,
+          image: r.image,
+          helpfulUsers: r.helpful_users || [],
+        }
+      }))
+      setHelpfulReviews(helpfulSet)
     }
   }
 
@@ -110,6 +121,43 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
         <p>Loading...</p>
       </div>
     )
+  }
+
+  const handleHelpful = async (reviewId: string) => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    const review = reviews.find(r => r.id === reviewId)
+    if (!review) return
+
+    const isHelpful = helpfulReviews.has(reviewId)
+    const currentHelpfulUsers = (review as any).helpful_users || []
+
+    if (isHelpful) {
+      // Remove user from helpful_users and decrement count
+      const newHelpfulUsers = currentHelpfulUsers.filter((id: string) => id !== user.id)
+      await supabase
+        .from('reviews')
+        .update({
+          helpful_users: newHelpfulUsers,
+          helpful_count: Math.max(0, review.helpfulCount - 1)
+        })
+        .eq('id', reviewId)
+    } else {
+      // Add user to helpful_users and increment count
+      await supabase
+        .from('reviews')
+        .update({
+          helpful_users: [...currentHelpfulUsers, user.id],
+          helpful_count: review.helpfulCount + 1
+        })
+        .eq('id', reviewId)
+    }
+
+    // Refresh reviews to get updated data
+    fetchReviews()
   }
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -191,13 +239,18 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
 
-            {cafe.image && (
+            {cafe.images && cafe.images.length > 0 && (
               <div className="mb-6">
-                <img
-                  src={cafe.image}
-                  alt={cafe.name}
-                  className="w-full h-64 object-cover rounded-lg"
-                />
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {cafe.images.map((image, index) => (
+                    <img
+                      key={index}
+                      src={image}
+                      alt={`${cafe.name} ${index + 1}`}
+                      className="w-64 h-64 object-cover rounded-lg flex-shrink-0"
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
@@ -234,7 +287,17 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
 
             {cafe.address && (
               <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-                <p className="text-gray-700">{cafe.address}</p>
+                <p className="text-gray-700 mb-2">{cafe.address}</p>
+                {cafe.googleMapsLink && (
+                  <a
+                    href={cafe.googleMapsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    View on Google Maps →
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -367,8 +430,13 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
                     <p className="text-gray-700 mb-4">{review.content}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <span>{new Date(review.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-                      <Button variant="ghost" size="sm">
-                        <ThumbsUp className="h-4 w-4 mr-2" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleHelpful(review.id)}
+                        className={helpfulReviews.has(review.id) ? 'text-blue-600' : ''}
+                      >
+                        <ThumbsUp className={`h-4 w-4 mr-2 ${helpfulReviews.has(review.id) ? 'fill-current' : ''}`} />
                         {review.helpfulCount} Helpful
                       </Button>
                     </div>
