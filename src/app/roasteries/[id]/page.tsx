@@ -228,7 +228,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
           deleted_by: user?.id,
           original_title: selectedReview.title,
           original_content: selectedReview.content,
-          author_id: selectedReview.user_id
+          author_id: selectedReview.userId
         })
 
       if (logError) {
@@ -239,7 +239,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       const { error: notificationError } = await supabase
         .from('notifications')
         .insert({
-          user_id: selectedReview.user_id,
+          user_id: selectedReview.userId,
           type: 'deletion',
           title: 'Your review has been deleted',
           message: `Your review "${selectedReview.title}" for ${roastery?.name || 'a roastery'} has been deleted. Reason: ${deletionReason}`,

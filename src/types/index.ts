@@ -22,6 +22,7 @@ export interface Roastery {
   address?: string
   images: string[]
   image?: string
+  googleMapsLink?: string
 }
 
 export interface Cafe {

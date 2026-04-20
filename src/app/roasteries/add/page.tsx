@@ -39,6 +39,7 @@ export default function AddRoasteryPage() {
   const [website, setWebsite] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
+  const [googleMapsLink, setGoogleMapsLink] = useState("")
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -65,6 +66,7 @@ export default function AddRoasteryPage() {
         website,
         phone,
         address,
+        google_maps_link: googleMapsLink || null,
         image: imageUrl,
         rating: 0,
         review_count: 0,
@@ -189,6 +191,19 @@ export default function AddRoasteryPage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Full address"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="googleMapsLink" className="text-sm font-medium mb-2 block">
+                    Google Maps Link
+                  </label>
+                  <Input
+                    id="googleMapsLink"
+                    type="url"
+                    value={googleMapsLink}
+                    onChange={(e) => setGoogleMapsLink(e.target.value)}
+                    placeholder="https://maps.google.com/..."
                   />
                 </div>
 

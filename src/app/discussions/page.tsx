@@ -22,33 +22,21 @@ export default function DiscussionsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [showDiscussionForm, setShowDiscussionForm] = useState(false)
+  const [discussionTitle, setDiscussionTitle] = useState("")
+  const [discussionContent, setDiscussionContent] = useState("")
+  const [discussionCategory, setDiscussionCategory] = useState("")
+  const [customCategory, setCustomCategory] = useState("")
+  const [discussionTags, setDiscussionTags] = useState("")
+  const [discussionImages, setDiscussionImages] = useState<string[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState("")
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login")
     }
   }, [user, loading, router])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null // Will redirect
-  }
-
-  const [showDiscussionForm, setShowDiscussionForm] = useState(false)
-  const [discussionTitle, setDiscussionTitle] = useState("")
-  const [discussionContent, setDiscussionContent] = useState("")
-  const [discussionCategory, setDiscussionCategory] = useState("")
-  const [discussionTags, setDiscussionTags] = useState("")
-  const [discussionImages, setDiscussionImages] = useState<string[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState("")
 
   const fetchDiscussions = async () => {
     const { data, error } = await supabase
@@ -83,6 +71,18 @@ export default function DiscussionsPage() {
     fetchDiscussions()
   }, [])
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
+  }
+
   if (dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -113,13 +113,15 @@ export default function DiscussionsPage() {
 
     const tagsArray = discussionTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
 
+    const categoryToSubmit = discussionCategory === "custom" ? customCategory : discussionCategory
+
     const { error } = await supabase
       .from('discussions')
       .insert({
         title: discussionTitle,
         content: discussionContent,
         author_id: user.id,
-        category: discussionCategory,
+        category: categoryToSubmit,
         tags: tagsArray,
         images: discussionImages,
       })
@@ -131,6 +133,7 @@ export default function DiscussionsPage() {
       setDiscussionTitle("")
       setDiscussionContent("")
       setDiscussionCategory("")
+      setCustomCategory("")
       setDiscussionTags("")
       setDiscussionImages([])
       fetchDiscussions()
@@ -277,7 +280,9 @@ export default function DiscussionsPage() {
                       <Input
                         className="mt-2"
                         placeholder="Enter custom category"
-                        onChange={(e) => setDiscussionCategory(e.target.value)}
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        required
                       />
                     )}
                   </div>

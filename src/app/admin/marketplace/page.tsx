@@ -211,7 +211,7 @@ export default function AdminMarketplacePage() {
   }
 
   const confirmDeleteReview = async () => {
-    if (!selectedReview || !deletionReason.trim()) {
+    if (!selectedReview || !deletionReason.trim() || !user) {
       alert('Please provide a deletion reason')
       return
     }
