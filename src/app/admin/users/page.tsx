@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
+import { DatabaseProfile } from "@/types"
+import { useToast } from "@/lib/toast-context"
 
 interface UserProfile {
   id: string
@@ -22,6 +24,7 @@ interface UserProfile {
 export default function AdminUsersPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<UserProfile[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -46,13 +49,13 @@ export default function AdminUsersPage() {
       .order('joined_at', { ascending: false })
 
     if (data) {
-      setUsers(data.map((u: any) => ({
+      setUsers(data.map((u: DatabaseProfile) => ({
         id: u.id,
         name: u.name,
         email: u.email,
         role: u.role || 'user',
         joined_at: u.joined_at,
-        avatar_url: u.avatar_url,
+        avatar_url: u.avatar_url ?? null,
       })))
     }
     setLoading(false)
@@ -73,7 +76,7 @@ export default function AdminUsersPage() {
       .eq('id', selectedUser.id)
 
     if (error) {
-      alert('Failed to update role: ' + error.message)
+      toast('Failed to update role: ' + error.message, 'error')
     } else {
       setShowRoleModal(false)
       setSelectedUser(null)
@@ -93,7 +96,7 @@ export default function AdminUsersPage() {
       .eq('id', userId)
 
     if (error) {
-      alert('Failed to delete user: ' + error.message)
+      toast('Failed to delete user: ' + error.message, 'error')
     } else {
       fetchUsers()
     }

@@ -5,7 +5,7 @@ import { Search, ShoppingBag, Filter, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { CoffeeProduct } from "@/types"
+import { CoffeeProduct, DatabaseCoffeeProduct } from "@/types"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
@@ -30,10 +30,10 @@ export default function MarketplacePage() {
       .order('average_rating', { ascending: false })
 
     if (data) {
-      setProducts(data.map((p: any) => ({
+      setProducts(data.map((p: DatabaseCoffeeProduct) => ({
         id: p.id,
         name: p.name,
-        category: p.category,
+        category: p.category as 'beans' | 'equipment' | 'accessories',
         roasteryId: p.roastery_id,
         price: p.price,
         description: p.description,

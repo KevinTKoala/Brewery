@@ -9,13 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
-import { Discussion, Reply } from "@/types"
+import { Discussion, Reply, DatabaseDiscussion, DatabaseReply } from "@/types"
 import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
+import { useToast } from "@/lib/toast-context"
 
 export default function DiscussionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [discussion, setDiscussion] = useState<Discussion | null>(null)
   const [replies, setReplies] = useState<Reply[]>([])
   const [dataLoading, setDataLoading] = useState(true)
@@ -103,7 +105,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
 
   const handleLike = async () => {
     if (!user) {
-      alert("Please log in to like discussions")
+      toast("Please log in to like discussions", 'warning')
       return
     }
 
@@ -187,7 +189,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
       .order('created_at', { ascending: false })
 
     if (data) {
-      setReplies(data.map((r: any) => ({
+      setReplies(data.map((r: DatabaseReply) => ({
         id: r.id,
         discussionId: r.discussion_id,
         author: {
@@ -246,7 +248,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
     // Only allow deletion if user is author, admin, or moderator
     const canDelete = user.id === authorId || user.role === 'admin' || user.role === 'moderator'
     if (!canDelete) {
-      alert("You don't have permission to delete this reply")
+      toast("You don't have permission to delete this reply", 'error')
       return
     }
 
@@ -260,7 +262,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
       .eq('id', replyId)
 
     if (error) {
-      alert("Failed to delete reply")
+      toast("Failed to delete reply", 'error')
     } else {
       fetchReplies()
       await supabase.rpc('decrement_reply_count', { discussion_id: unwrappedParams.id })
@@ -270,7 +272,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
 
   const handleLikeReply = async (replyId: string) => {
     if (!user) {
-      alert("Please log in to like replies")
+      toast("Please log in to like replies", 'warning')
       return
     }
 
@@ -427,7 +429,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
       .eq('id', unwrappedParams.id)
 
     if (error) {
-      alert('Failed to delete discussion: ' + error.message)
+      toast('Failed to delete discussion: ' + error.message, 'error')
     } else {
       // Redirect to discussions page
       window.location.href = '/discussions'

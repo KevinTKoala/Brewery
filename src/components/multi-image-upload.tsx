@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Upload, X, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
+import { useToast } from "@/lib/toast-context"
 
 interface MultiImageUploadProps {
   images: string[]
@@ -14,6 +15,7 @@ interface MultiImageUploadProps {
 
 export function MultiImageUpload({ images, onImagesChange, maxFiles = 5, accept = "image/*" }: MultiImageUploadProps) {
   const [uploading, setUploading] = useState(false)
+  const { toast } = useToast()
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -21,19 +23,19 @@ export function MultiImageUpload({ images, onImagesChange, maxFiles = 5, accept 
 
     const file = files[0]
     if (images.length >= maxFiles) {
-      alert(`Maximum ${maxFiles} images allowed`)
+      toast(`Maximum ${maxFiles} images allowed`, 'warning')
       return
     }
 
     // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
-      alert("File size must be less than 2MB")
+      toast("File size must be less than 2MB", 'warning')
       return
     }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert("File must be an image")
+      toast("File must be an image", 'warning')
       return
     }
 
@@ -62,8 +64,9 @@ export function MultiImageUpload({ images, onImagesChange, maxFiles = 5, accept 
       // Add to images array
       onImagesChange([...images, publicUrl])
 
-    } catch (error: any) {
-      alert(error.message || "Failed to upload image")
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload image"
+      toast(errorMessage, 'error')
     } finally {
       setUploading(false)
       // Reset file input

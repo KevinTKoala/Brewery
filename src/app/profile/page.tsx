@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
-import { Review, Discussion, Reply } from "@/types"
+import { Review, Discussion, Reply, DatabaseReview, DatabaseDiscussion, DatabaseReply } from "@/types"
 import { ImageUpload } from "@/components/image-upload"
 
 export default function ProfilePage() {
@@ -61,7 +61,7 @@ export default function ProfilePage() {
       .order('created_at', { ascending: false })
 
     if (reviewsData) {
-      setReviews(reviewsData.map((r: any) => ({
+      setReviews(reviewsData.map((r: DatabaseReview) => ({
         id: r.id,
         userId: r.user_id,
         targetId: r.target_id,
@@ -84,7 +84,7 @@ export default function ProfilePage() {
       .order('created_at', { ascending: false })
 
     if (discussionsData) {
-      setDiscussions(discussionsData.map((d: any) => ({
+      setDiscussions(discussionsData.map((d: DatabaseDiscussion) => ({
         id: d.id,
         title: d.title,
         content: d.content,
@@ -111,7 +111,7 @@ export default function ProfilePage() {
       .order('created_at', { ascending: false })
 
     if (repliesData) {
-      setReplies(repliesData.map((r: any) => ({
+      setReplies(repliesData.map((r: DatabaseReply) => ({
         id: r.id,
         discussionId: r.discussion_id,
         author: {
@@ -136,6 +136,7 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
     setUpdateError("")
     setUpdateSuccess("")
     setUpdating(true)
@@ -189,8 +190,9 @@ export default function ProfilePage() {
       
       // Refresh user data
       window.location.reload()
-    } catch (error: any) {
-      setUpdateError(error.message || "Failed to update profile")
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to update profile"
+      setUpdateError(errorMessage)
     } finally {
       setUpdating(false)
     }

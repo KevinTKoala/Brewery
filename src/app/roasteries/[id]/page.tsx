@@ -9,14 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
-import { Roastery, Review } from "@/types"
+import { Roastery, Review, DatabaseRoastery, DatabaseReview } from "@/types"
 import { ImageUpload } from "@/components/image-upload"
 import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
+import { useToast } from "@/lib/toast-context"
 
 export default function RoasteryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [roastery, setRoastery] = useState<Roastery | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [dataLoading, setDataLoading] = useState(true)
@@ -92,7 +94,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       .order('created_at', { ascending: false })
 
     if (data) {
-      setReviews(data.map((r: any) => ({
+      setReviews(data.map((r: DatabaseReview) => ({
         id: r.id,
         userId: r.user_id,
         targetId: r.target_id,
@@ -182,7 +184,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to update review: ' + error.message)
+      toast('Failed to update review: ' + error.message, 'error')
     } else {
       setShowEditReviewModal(false)
       setSelectedReview(null)
@@ -194,7 +196,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
 
   const confirmDeleteReview = async () => {
     if (!selectedReview || !deletionReason.trim()) {
-      alert('Please provide a deletion reason')
+      toast('Please provide a deletion reason', 'warning')
       return
     }
 
@@ -205,7 +207,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       .eq('id', selectedReview.id)
 
     if (updateError) {
-      alert('Failed to update review with deletion reason: ' + updateError.message)
+      toast('Failed to update review with deletion reason: ' + updateError.message, 'error')
       return
     }
 
@@ -216,7 +218,7 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to delete review: ' + error.message)
+      toast('Failed to delete review: ' + error.message, 'error')
     } else {
       // Log to deletion_log
       const { error: logError } = await supabase

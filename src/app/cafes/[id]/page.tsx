@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
-import { Cafe, Review } from "@/types"
+import { Cafe, Review, DatabaseCafe, DatabaseReview } from "@/types"
 import { ImageUpload } from "@/components/image-upload"
 import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
 
@@ -86,7 +86,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
 
     if (data) {
       const helpfulSet = new Set<string>()
-      setReviews(data.map((r: any) => {
+      setReviews(data.map((r: DatabaseReview) => {
         // Check if current user has marked this review as helpful
         if (user && r.helpful_users && r.helpful_users.includes(user.id)) {
           helpfulSet.add(r.id)
@@ -133,7 +133,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
     if (!review) return
 
     const isHelpful = helpfulReviews.has(reviewId)
-    const currentHelpfulUsers = (review as any).helpful_users || []
+    const currentHelpfulUsers = (review as Review & { helpful_users?: string[] }).helpful_users || []
 
     if (isHelpful) {
       // Remove user from helpful_users and decrement count

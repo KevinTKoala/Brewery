@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { Cafe } from "@/types"
+import { Cafe, DatabaseCafe } from "@/types"
 import Image from "next/image"
 import { useAuth } from "@/lib/auth-context"
 
@@ -48,7 +48,7 @@ export default function CafesPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setCafes(data.map((c: any) => ({
+      setCafes(data.map((c: DatabaseCafe) => ({
         id: c.id,
         name: c.name,
         location: c.location,
@@ -60,7 +60,7 @@ export default function CafesPage() {
         phone: c.phone,
         address: c.address,
         hours: c.hours,
-        images: c.images,
+        images: c.images || [],
         image: c.image,
       })))
     }

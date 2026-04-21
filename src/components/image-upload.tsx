@@ -59,8 +59,9 @@ export function ImageUpload({ onUploadComplete, onUploadError, maxFiles = 1, acc
       setPreview(publicUrl)
       onUploadComplete(publicUrl)
 
-    } catch (error: any) {
-      onUploadError?.(error.message || "Failed to upload image")
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload image"
+      onUploadError?.(errorMessage)
     } finally {
       setUploading(false)
       // Reset file input

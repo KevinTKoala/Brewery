@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { DatabaseRoastery, DatabaseReview } from "@/types"
+import { useToast } from "@/lib/toast-context"
 
 interface Roastery {
   id: string
@@ -27,6 +29,7 @@ interface Roastery {
 export default function AdminRoasteriesPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [roasteries, setRoasteries] = useState<Roastery[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -71,7 +74,7 @@ export default function AdminRoasteriesPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setRoasteries(data.map((r: any) => ({
+      setRoasteries(data.map((r: DatabaseRoastery) => ({
         id: r.id,
         name: r.name,
         location: r.location,
@@ -105,7 +108,7 @@ export default function AdminRoasteriesPage() {
       .eq('id', roasteryId)
 
     if (error) {
-      alert('Failed to delete roastery: ' + error.message)
+      toast('Failed to delete roastery: ' + error.message, 'error')
     } else {
       fetchRoasteries()
     }
@@ -131,7 +134,7 @@ export default function AdminRoasteriesPage() {
       .eq('id', selectedRoastery.id)
 
     if (error) {
-      alert('Failed to update roastery: ' + error.message)
+      toast('Failed to update roastery: ' + error.message, 'error')
     } else {
       setShowEditModal(false)
       setSelectedRoastery(null)
@@ -147,6 +150,9 @@ export default function AdminRoasteriesPage() {
       location: roastery.location,
       description: roastery.description,
       specialties: roastery.specialties.join(', '),
+      website: roastery.website || '',
+      phone: roastery.phone || '',
+      address: roastery.address || '',
     })
     setShowEditModal(true)
   }
@@ -163,10 +169,10 @@ export default function AdminRoasteriesPage() {
 
     if (error) {
       console.error('Error fetching reviews:', error.message || error)
-      alert('Failed to fetch reviews: ' + (error.message || 'Unknown error'))
+      toast('Failed to fetch reviews: ' + (error.message || 'Unknown error'), 'error')
       setReviews([])
     } else if (reviewsData) {
-      const userIds = [...new Set(reviewsData.map((r: any) => r.user_id))]
+      const userIds = [...new Set(reviewsData.map((r: DatabaseReview) => r.user_id))]
       let profilesMap = new Map()
 
       if (userIds.length > 0) {
@@ -179,10 +185,10 @@ export default function AdminRoasteriesPage() {
           console.error('Error fetching profiles:', profilesError.message || profilesError)
         }
 
-        profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]) || [])
+        profilesMap = new Map(profilesData?.map((p: { id: string; name?: string; avatar_url?: string }) => [p.id, p]) || [])
       }
 
-      setReviews(reviewsData.map((r: any) => ({
+      setReviews(reviewsData.map((r: DatabaseReview) => ({
         ...r,
         user: profilesMap.get(r.user_id)
       })))
@@ -192,7 +198,7 @@ export default function AdminRoasteriesPage() {
     setReviewsLoading(false)
   }
 
-  const openEditReviewModal = (review: any) => {
+  const openEditReviewModal = (review: DatabaseReview & { user?: { id: string; name?: string; avatar_url?: string } }) => {
     setSelectedReview(review)
     setReviewEditForm({
       rating: review.rating,
@@ -216,7 +222,7 @@ export default function AdminRoasteriesPage() {
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to update review: ' + error.message)
+      toast('Failed to update review: ' + error.message, 'error')
     } else {
       setShowEditReviewModal(false)
       setSelectedReview(null)
@@ -235,7 +241,7 @@ export default function AdminRoasteriesPage() {
 
   const confirmDeleteReview = async () => {
     if (!selectedReview || !deletionReason.trim()) {
-      alert('Please provide a deletion reason')
+      toast('Please provide a deletion reason', 'warning')
       return
     }
 
@@ -246,7 +252,7 @@ export default function AdminRoasteriesPage() {
       .eq('id', selectedReview.id)
 
     if (updateError) {
-      alert('Failed to update review with deletion reason: ' + updateError.message)
+      toast('Failed to update review with deletion reason: ' + updateError.message, 'error')
       return
     }
 
@@ -257,7 +263,7 @@ export default function AdminRoasteriesPage() {
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to delete review: ' + error.message)
+      toast('Failed to delete review: ' + error.message, 'error')
     } else {
       // Log to deletion_log
       const { error: logError } = await supabase

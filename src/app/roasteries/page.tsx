@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { Roastery } from "@/types"
+import { Roastery, DatabaseRoastery } from "@/types"
 import Image from "next/image"
 import { useAuth } from "@/lib/auth-context"
 
@@ -48,7 +48,7 @@ export default function RoasteriesPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setRoasteries(data.map((r: any) => ({
+      setRoasteries(data.map((r: DatabaseRoastery) => ({
         id: r.id,
         name: r.name,
         location: r.location,
@@ -59,7 +59,7 @@ export default function RoasteriesPage() {
         website: r.website,
         phone: r.phone,
         address: r.address,
-        images: r.images,
+        images: r.images || [],
         image: r.image,
       })))
     }

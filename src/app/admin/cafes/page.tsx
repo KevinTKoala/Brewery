@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { MultiImageUpload } from "@/components/multi-image-upload"
+import { DatabaseCafe, DatabaseReview } from "@/types"
+import { useToast } from "@/lib/toast-context"
 
 interface Cafe {
   id: string
@@ -42,6 +44,7 @@ interface Review {
 export default function AdminCafesPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [cafes, setCafes] = useState<Cafe[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -91,7 +94,7 @@ export default function AdminCafesPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setCafes(data.map((c: any) => ({
+      setCafes(data.map((c: DatabaseCafe) => ({
         id: c.id,
         name: c.name,
         location: c.location,
@@ -126,7 +129,7 @@ export default function AdminCafesPage() {
       .eq('id', cafeId)
 
     if (error) {
-      alert('Failed to delete cafe: ' + error.message)
+      toast('Failed to delete cafe: ' + error.message, 'error')
     } else {
       fetchCafes()
     }
@@ -157,7 +160,7 @@ export default function AdminCafesPage() {
       .eq('id', selectedCafe.id)
 
     if (error) {
-      alert('Failed to update cafe: ' + error.message)
+      toast('Failed to update cafe: ' + error.message, 'error')
     } else {
       setShowEditModal(false)
       setSelectedCafe(null)
@@ -194,7 +197,7 @@ export default function AdminCafesPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setReviews(data.map((r: any) => ({
+      setReviews(data.map((r: DatabaseReview) => ({
         id: r.id,
         userId: r.user_id,
         targetId: r.target_id,
@@ -239,7 +242,7 @@ export default function AdminCafesPage() {
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to update review: ' + error.message)
+      toast('Failed to update review: ' + error.message, 'error')
     } else {
       setShowEditReviewModal(false)
       setSelectedReview(null)
@@ -259,7 +262,7 @@ export default function AdminCafesPage() {
 
   const confirmDeleteReview = async () => {
     if (!selectedReviewToDelete || !deletionReason.trim()) {
-      alert('Please provide a deletion reason')
+      toast('Please provide a deletion reason', 'warning')
       return
     }
 
@@ -271,7 +274,7 @@ export default function AdminCafesPage() {
       .single()
 
     if (fetchError) {
-      alert('Failed to fetch review details: ' + fetchError.message)
+      toast('Failed to fetch review details: ' + fetchError.message, 'error')
       return
     }
 
@@ -289,7 +292,7 @@ export default function AdminCafesPage() {
       })
 
     if (logError) {
-      alert('Failed to log deletion: ' + logError.message)
+      toast('Failed to log deletion: ' + logError.message, 'error')
       return
     }
 
@@ -312,7 +315,7 @@ export default function AdminCafesPage() {
       .eq('id', selectedReviewToDelete)
 
     if (error) {
-      alert('Failed to delete review: ' + error.message)
+      toast('Failed to delete review: ' + error.message, 'error')
     } else {
       setShowDeleteReviewModal(false)
       setSelectedReviewToDelete(null)

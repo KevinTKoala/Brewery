@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { MultiImageUpload } from "@/components/multi-image-upload"
+import { DatabaseCoffeeProduct, DatabaseProductReview } from "@/types"
+import { useToast } from "@/lib/toast-context"
 
 interface Product {
   id: string
@@ -27,6 +29,7 @@ interface Product {
 export default function AdminMarketplacePage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -80,7 +83,7 @@ export default function AdminMarketplacePage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setProducts(data.map((p: any) => ({
+      setProducts(data.map((p: DatabaseCoffeeProduct) => ({
         id: p.id,
         name: p.name,
         category: p.category,
@@ -114,7 +117,7 @@ export default function AdminMarketplacePage() {
       .eq('id', id)
 
     if (error) {
-      alert('Failed to delete product: ' + error.message)
+      toast('Failed to delete product: ' + error.message, 'error')
     } else {
       fetchProducts()
     }
@@ -150,7 +153,7 @@ export default function AdminMarketplacePage() {
       console.error('Error fetching reviews:', error)
       setReviews([])
     } else if (reviewsData) {
-      const userIds = [...new Set(reviewsData.map((r: any) => r.user_id))]
+      const userIds = [...new Set(reviewsData.map((r: DatabaseProductReview) => r.user_id))]
       let profilesMap = new Map()
 
       if (userIds.length > 0) {
@@ -159,10 +162,10 @@ export default function AdminMarketplacePage() {
           .select('id, username, avatar_url')
           .in('id', userIds)
 
-        profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]) || [])
+        profilesMap = new Map(profilesData?.map((p: { id: string; username?: string; avatar_url?: string }) => [p.id, p]) || [])
       }
 
-      setReviews(reviewsData.map((r: any) => ({
+      setReviews(reviewsData.map((r: DatabaseProductReview) => ({
         ...r,
         user: profilesMap.get(r.user_id)
       })))
@@ -172,11 +175,11 @@ export default function AdminMarketplacePage() {
     setReviewsLoading(false)
   }
 
-  const openEditReviewModal = (review: any) => {
+  const openEditReviewModal = (review: DatabaseProductReview & { user?: { id: string; username?: string; avatar_url?: string } }) => {
     setSelectedReview(review)
     setReviewEditForm({
       rating: review.rating,
-      comment: review.comment
+      comment: review.comment || ""
     })
     setShowEditReviewModal(true)
   }
@@ -194,7 +197,7 @@ export default function AdminMarketplacePage() {
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to update review: ' + error.message)
+      toast('Failed to update review: ' + error.message, 'error')
     } else {
       setShowEditReviewModal(false)
       setSelectedReview(null)
@@ -212,7 +215,7 @@ export default function AdminMarketplacePage() {
 
   const confirmDeleteReview = async () => {
     if (!selectedReview || !deletionReason.trim() || !user) {
-      alert('Please provide a deletion reason')
+      toast('Please provide a deletion reason', 'warning')
       return
     }
 
@@ -224,7 +227,7 @@ export default function AdminMarketplacePage() {
       .single()
 
     if (!reviewData) {
-      alert('Failed to fetch review details')
+      toast('Failed to fetch review details', 'error')
       return
     }
 
@@ -270,7 +273,7 @@ export default function AdminMarketplacePage() {
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to delete review: ' + error.message)
+      toast('Failed to delete review: ' + error.message, 'error')
     } else {
       setShowDeleteReviewModal(false)
       setSelectedReview(null)
@@ -348,9 +351,10 @@ export default function AdminMarketplacePage() {
         reviewCount: "0",
       })
       fetchProducts()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Submit error:', error)
-      setSubmitError(error.message || "Failed to save product")
+      const errorMessage = error instanceof Error ? error.message : "Failed to save product"
+      setSubmitError(errorMessage)
     } finally {
       setSubmitting(false)
     }

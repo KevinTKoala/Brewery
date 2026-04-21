@@ -5,15 +5,17 @@ import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, ShoppingBag, Star, MessageSquare, Heart, Share2, ExternalLink, Edit2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CoffeeProduct, ProductReview } from "@/types"
+import { CoffeeProduct, ProductReview, DatabaseCoffeeProduct, DatabaseProductReview } from "@/types"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/lib/toast-context"
 import Link from "next/link"
 
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [product, setProduct] = useState<CoffeeProduct | null>(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
@@ -81,15 +83,15 @@ export default function ProductDetailPage() {
 
     if (reviewsData && reviewsData.length > 0) {
       // Fetch user profiles for all reviewers
-      const userIds = [...new Set(reviewsData.map((r: any) => r.user_id))]
+      const userIds = [...new Set(reviewsData.map((r: DatabaseProductReview) => r.user_id))]
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, username, avatar_url')
         .in('id', userIds)
 
-      const profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]) || [])
+      const profilesMap = new Map(profilesData?.map((p: { id: string; username?: string; avatar_url?: string }) => [p.id, p]) || [])
 
-      setReviews(reviewsData.map((r: any) => ({
+      setReviews(reviewsData.map((r: DatabaseProductReview) => ({
         id: r.id,
         productId: r.product_id,
         userId: r.user_id,
@@ -153,9 +155,10 @@ export default function ProductDetailPage() {
       setReviewForm({ rating: 5, comment: "" })
       fetchReviews()
       fetchProduct() // Refresh product to get updated rating
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Review submission error:', error)
-      alert(error.message || "Failed to submit review")
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit review"
+      toast(errorMessage, 'error')
     } finally {
       setSubmittingReview(false)
     }
@@ -165,7 +168,7 @@ export default function ProductDetailPage() {
     setSelectedReview(review)
     setReviewEditForm({
       rating: review.rating,
-      comment: review.comment
+      comment: review.comment || ""
     })
     setShowEditReviewModal(true)
   }
@@ -183,7 +186,7 @@ export default function ProductDetailPage() {
       .eq('id', selectedReview.id)
 
     if (error) {
-      alert('Failed to update review: ' + error.message)
+      toast('Failed to update review: ' + error.message, 'error')
     } else {
       setShowEditReviewModal(false)
       setSelectedReview(null)
@@ -459,7 +462,7 @@ export default function ProductDetailPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => alert('Delete functionality coming soon')}
+                                  onClick={() => toast('Delete functionality coming soon', 'info')}
                                 >
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>

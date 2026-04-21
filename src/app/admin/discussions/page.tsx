@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { DatabaseDiscussion } from "@/types"
+import { useToast } from "@/lib/toast-context"
 
 interface Discussion {
   id: string
@@ -30,6 +32,7 @@ interface Discussion {
 export default function AdminDiscussionsPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -62,15 +65,15 @@ export default function AdminDiscussionsPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setDiscussions(data.map((d: any) => ({
+      setDiscussions(data.map((d: DatabaseDiscussion) => ({
         id: d.id,
         title: d.title,
         content: d.content,
         category: d.category,
         tags: d.tags || [],
         author: {
-          id: d.user_id,
-          name: d.user_id, // Will be updated with profile name
+          id: d.author_id,
+          name: d.author_id, // Will be updated with profile name
         },
         replyCount: d.reply_count,
         viewCount: d.view_count,
@@ -96,7 +99,7 @@ export default function AdminDiscussionsPage() {
 
   const confirmDeleteDiscussion = async () => {
     if (!selectedDiscussionToDelete || !deletionReason.trim()) {
-      alert('Please provide a deletion reason')
+      toast('Please provide a deletion reason', 'warning')
       return
     }
 
@@ -108,7 +111,7 @@ export default function AdminDiscussionsPage() {
       .single()
 
     if (fetchError) {
-      alert('Failed to fetch discussion details: ' + fetchError.message)
+      toast('Failed to fetch discussion details: ' + fetchError.message, 'error')
       return
     }
 
@@ -126,7 +129,7 @@ export default function AdminDiscussionsPage() {
       })
 
     if (logError) {
-      alert('Failed to log deletion: ' + logError.message)
+      toast('Failed to log deletion: ' + logError.message, 'error')
       return
     }
 
@@ -149,7 +152,7 @@ export default function AdminDiscussionsPage() {
       .eq('id', selectedDiscussionToDelete)
 
     if (error) {
-      alert('Failed to delete discussion: ' + error.message)
+      toast('Failed to delete discussion: ' + error.message, 'error')
     } else {
       setShowDeleteModal(false)
       setSelectedDiscussionToDelete(null)
@@ -175,7 +178,7 @@ export default function AdminDiscussionsPage() {
       .eq('id', selectedDiscussion.id)
 
     if (error) {
-      alert('Failed to update discussion: ' + error.message)
+      toast('Failed to update discussion: ' + error.message, 'error')
     } else {
       setShowEditModal(false)
       setSelectedDiscussion(null)

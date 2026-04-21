@@ -8,14 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
-import { Discussion } from "@/types"
+import { Discussion, DatabaseDiscussion } from "@/types"
 import { useRouter } from "next/navigation"
 import { ImageUpload } from "@/components/image-upload"
 import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
+import { useToast } from "@/lib/toast-context"
 
 export default function DiscussionsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"newest" | "most_replies" | "most_likes">("newest")
@@ -45,7 +47,7 @@ export default function DiscussionsPage() {
       .order('created_at', { ascending: false })
 
     if (data) {
-      setDiscussions(data.map((d: any) => ({
+      setDiscussions(data.map((d: DatabaseDiscussion) => ({
         id: d.id,
         title: d.title,
         content: d.content,
@@ -158,7 +160,7 @@ export default function DiscussionsPage() {
       .eq('id', discussionId)
 
     if (error) {
-      alert('Failed to delete discussion: ' + error.message)
+      toast('Failed to delete discussion: ' + error.message, 'error')
     } else {
       fetchDiscussions()
     }

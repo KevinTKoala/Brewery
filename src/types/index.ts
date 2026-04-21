@@ -9,6 +9,115 @@ export interface User {
   role?: UserRole
 }
 
+// Supabase Database Response Types
+export interface DatabaseProfile {
+  id: string
+  name: string
+  email: string
+  avatar_url?: string
+  joined_at: string
+  role: UserRole
+}
+
+export interface DatabaseDiscussion {
+  id: string
+  title: string
+  content: string
+  author_id: string
+  category: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+  reply_count: number
+  view_count: number
+  likes: number
+  images?: string[]
+}
+
+export interface DatabaseReply {
+  id: string
+  discussion_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  likes: number
+}
+
+export interface DatabaseRoastery {
+  id: string
+  name: string
+  location: string
+  description: string
+  rating: number
+  review_count: number
+  specialties: string[]
+  website?: string
+  phone?: string
+  address?: string
+  images?: string[]
+  image?: string
+  google_maps_link?: string
+  created_at: string
+}
+
+export interface DatabaseCafe {
+  id: string
+  name: string
+  location: string
+  description: string
+  rating: number
+  review_count: number
+  specialties: string[]
+  website?: string
+  phone?: string
+  address?: string
+  hours?: string
+  images?: string[]
+  image?: string
+  google_maps_link?: string
+  created_at: string
+}
+
+export interface DatabaseReview {
+  id: string
+  user_id: string
+  target_id: string
+  target_type: 'roastery' | 'cafe'
+  rating: number
+  title: string
+  content: string
+  helpful_count: number
+  created_at: string
+  image?: string
+  helpful_users?: string[]
+}
+
+export interface DatabaseCoffeeProduct {
+  id: string
+  name: string
+  category: string
+  roastery_id?: string
+  price: number
+  description: string
+  images?: string[]
+  in_stock: boolean
+  average_rating?: number
+  review_count?: number
+  specifications?: Record<string, string>
+  external_link?: string
+}
+
+export interface DatabaseProductReview {
+  id: string
+  product_id: string
+  user_id: string
+  rating: number
+  comment?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Roastery {
   id: string
   name: string
@@ -144,6 +253,10 @@ export interface ProductReview {
   comment?: string
   createdAt: string
   updatedAt: string
+  user?: {
+    username?: string
+    avatarUrl?: string
+  }
 }
 
 export interface Equipment {
