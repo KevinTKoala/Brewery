@@ -13,11 +13,23 @@ import { ImageUpload } from "@/components/image-upload"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, loading: authLoading } = useAuth()
   const [reviews, setReviews] = useState<Review[]>([])
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [replies, setReplies] = useState<Reply[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [authTimeout, setAuthTimeout] = useState(false)
+
+  // Force render if auth takes too long
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth timeout - forcing render')
+        setAuthTimeout(true)
+      }
+    }, 3000) // 3 second timeout
+    return () => clearTimeout(timeout)
+  }, [authLoading])
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState("")
   const [editEmail, setEditEmail] = useState("")
@@ -30,103 +42,109 @@ export default function ProfilePage() {
   const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return
     if (!user) {
+      setLoading(false)
       router.push("/login")
       return
     }
     fetchUserData()
     setEditName(user.name)
     setEditEmail(user.email)
-  }, [user])
+  }, [user, authLoading])
 
   const fetchUserData = async () => {
     if (!user) return
 
-    // Fetch user's profile to get avatar
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .single()
+    try {
+      // Fetch user's profile to get avatar
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single()
 
-    if (profileData?.avatar_url) {
-      setAvatarUrl(profileData.avatar_url)
+      if (profileData?.avatar_url) {
+        setAvatarUrl(profileData.avatar_url)
+      }
+
+      // Fetch user's reviews
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (reviewsData) {
+        setReviews(reviewsData.map((r: DatabaseReview) => ({
+          id: r.id,
+          userId: r.user_id,
+          targetId: r.target_id,
+          targetType: r.target_type,
+          rating: r.rating,
+          title: r.title,
+          content: r.content,
+          userName: user.name,
+          helpfulCount: r.helpful_count,
+          createdAt: r.created_at,
+          image: r.image,
+        })))
+      }
+
+      // Fetch user's discussions
+      const { data: discussionsData } = await supabase
+        .from('discussions')
+        .select('*')
+        .eq('author_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (discussionsData) {
+        setDiscussions(discussionsData.map((d: DatabaseDiscussion) => ({
+          id: d.id,
+          title: d.title,
+          content: d.content,
+          author: {
+            id: user.id,
+            name: user.name,
+            avatar: undefined,
+          },
+          category: d.category,
+          tags: d.tags,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+          replyCount: d.reply_count,
+          viewCount: d.view_count,
+          likes: d.likes,
+        })))
+      }
+
+      // Fetch user's replies
+      const { data: repliesData } = await supabase
+        .from('replies')
+        .select('*')
+        .eq('author_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (repliesData) {
+        setReplies(repliesData.map((r: DatabaseReply) => ({
+          id: r.id,
+          discussionId: r.discussion_id,
+          author: {
+            id: user.id,
+            name: user.name,
+            avatar: undefined,
+          },
+          content: r.content,
+          likes: r.likes,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        })))
+      }
+    } catch (error) {
+      console.error('Failed to fetch user data:', error)
+    } finally {
+      setLoading(false)
     }
-
-    // Fetch user's reviews
-    const { data: reviewsData } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-
-    if (reviewsData) {
-      setReviews(reviewsData.map((r: DatabaseReview) => ({
-        id: r.id,
-        userId: r.user_id,
-        targetId: r.target_id,
-        targetType: r.target_type,
-        rating: r.rating,
-        title: r.title,
-        content: r.content,
-        userName: user.name,
-        helpfulCount: r.helpful_count,
-        createdAt: r.created_at,
-        image: r.image,
-      })))
-    }
-
-    // Fetch user's discussions
-    const { data: discussionsData } = await supabase
-      .from('discussions')
-      .select('*')
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false })
-
-    if (discussionsData) {
-      setDiscussions(discussionsData.map((d: DatabaseDiscussion) => ({
-        id: d.id,
-        title: d.title,
-        content: d.content,
-        author: {
-          id: user.id,
-          name: user.name,
-          avatar: undefined,
-        },
-        category: d.category,
-        tags: d.tags,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
-        replyCount: d.reply_count,
-        viewCount: d.view_count,
-        likes: d.likes,
-      })))
-    }
-
-    // Fetch user's replies
-    const { data: repliesData } = await supabase
-      .from('replies')
-      .select('*')
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false })
-
-    if (repliesData) {
-      setReplies(repliesData.map((r: DatabaseReply) => ({
-        id: r.id,
-        discussionId: r.discussion_id,
-        author: {
-          id: user.id,
-          name: user.name,
-          avatar: undefined,
-        },
-        content: r.content,
-        likes: r.likes,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-      })))
-    }
-
-    setLoading(false)
   }
 
   const handleLogout = () => {
@@ -189,7 +207,7 @@ export default function ProfilePage() {
       setIsEditing(false)
       
       // Refresh user data
-      window.location.reload()
+      fetchUserData()
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to update profile"
       setUpdateError(errorMessage)
@@ -198,7 +216,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) {
+  if (loading || (authLoading && !authTimeout)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p>Loading...</p>

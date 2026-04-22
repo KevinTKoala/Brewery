@@ -34,6 +34,13 @@ We believe every coffee lover deserves easy access to quality coffee information
 - Protected routes (homepage requires authentication)
 - User greeting and profile link in navigation when logged in
 
+### 🛡️ Content Moderation
+- Automatic content filtering with banned word detection
+- Admin and moderator content deletion capabilities
+- Deletion logging with reason tracking
+- Automatic notifications to users when content is deleted
+- Comprehensive audit trail for content moderation actions
+
 ### 👤 User Profiles
 - View your activity stats (reviews, discussions, replies)
 - See your submitted reviews, discussions, and replies
@@ -155,6 +162,9 @@ brewery/
 - [x] Scrollable image galleries for products
 - [x] Product specifications and descriptions
 - [x] External product links
+- [x] Content moderation with banned word filtering
+- [x] Deletion logging with reason tracking
+- [x] Automatic notifications for content deletion
 
 ### In Progress 🚧
 - [ ] Equipment reviews and ratings

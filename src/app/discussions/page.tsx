@@ -15,7 +15,7 @@ import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
 import { useToast } from "@/lib/toast-context"
 
 export default function DiscussionsPage() {
-  const { user, loading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
@@ -23,7 +23,19 @@ export default function DiscussionsPage() {
   const [sortBy, setSortBy] = useState<"newest" | "most_replies" | "most_likes">("newest")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [discussions, setDiscussions] = useState<Discussion[]>([])
-  const [dataLoading, setDataLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(false)
+  const [authTimeout, setAuthTimeout] = useState(false)
+
+  // Force render if auth takes too long
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth timeout - forcing render')
+        setAuthTimeout(true)
+      }
+    }, 3000) // 3 second timeout
+    return () => clearTimeout(timeout)
+  }, [authLoading])
   const [showDiscussionForm, setShowDiscussionForm] = useState(false)
   const [discussionTitle, setDiscussionTitle] = useState("")
   const [discussionContent, setDiscussionContent] = useState("")
@@ -35,45 +47,51 @@ export default function DiscussionsPage() {
   const [submitError, setSubmitError] = useState("")
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push("/login")
     }
-  }, [user, loading, router])
+  }, [user, authLoading, router])
 
   const fetchDiscussions = async () => {
-    const { data, error } = await supabase
-      .from('discussions')
-      .select('*')
-      .order('created_at', { ascending: false })
+    setDataLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('discussions')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    if (data) {
-      setDiscussions(data.map((d: DatabaseDiscussion) => ({
-        id: d.id,
-        title: d.title,
-        content: d.content,
-        author: {
-          id: d.author_id,
-          name: d.author_id, // Will be updated with profile name
-          avatar: undefined,
-        },
-        category: d.category,
-        tags: d.tags,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
-        replyCount: d.reply_count,
-        viewCount: d.view_count,
-        likes: d.likes,
-        images: d.images,
-      })))
+      if (data) {
+        setDiscussions(data.map((d: DatabaseDiscussion) => ({
+          id: d.id,
+          title: d.title,
+          content: d.content,
+          author: {
+            id: d.author_id,
+            name: d.author_id, // Will be updated with profile name
+            avatar: undefined,
+          },
+          category: d.category,
+          tags: d.tags,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+          replyCount: d.reply_count,
+          viewCount: d.view_count,
+          likes: d.likes,
+          images: d.images,
+        })))
+      }
+    } catch (error) {
+      console.error('Failed to fetch discussions:', error)
+    } finally {
+      setDataLoading(false)
     }
-    setDataLoading(false)
   }
 
   useEffect(() => {
     fetchDiscussions()
   }, [])
 
-  if (loading) {
+  if (authLoading && !authTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading...</p>
@@ -97,6 +115,24 @@ export default function DiscussionsPage() {
     e.preventDefault()
     if (!user) {
       setSubmitError("Please log in to submit a discussion")
+      return
+    }
+
+    // Validate required fields
+    if (!discussionTitle.trim()) {
+      setSubmitError("Title is required")
+      return
+    }
+    if (discussionTitle.length < 5) {
+      setSubmitError("Title must be at least 5 characters")
+      return
+    }
+    if (!discussionContent.trim()) {
+      setSubmitError("Content is required")
+      return
+    }
+    if (discussionContent.length < 10) {
+      setSubmitError("Content must be at least 10 characters")
       return
     }
 
@@ -428,7 +464,7 @@ export default function DiscussionsPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {loading ? (
+        {dataLoading ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">Loading discussions...</p>
           </div>

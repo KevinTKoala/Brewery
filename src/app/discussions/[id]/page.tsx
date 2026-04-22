@@ -145,7 +145,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
         setDiscussion(prev => prev ? { ...prev, likes: (prev.likes || 0) + 1 } : null)
       }
     } catch (error) {
-      console.error("Error liking discussion:", error)
+      // Error liking discussion
     } finally {
       setLiking(false)
     }
@@ -316,7 +316,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
 
       fetchReplies()
     } catch (error) {
-      console.error("Error liking reply:", error)
+      // Error liking reply
     }
   }
 
@@ -432,7 +432,7 @@ export default function DiscussionDetailPage({ params }: { params: Promise<{ id:
       toast('Failed to delete discussion: ' + error.message, 'error')
     } else {
       // Redirect to discussions page
-      window.location.href = '/discussions'
+      router.push('/discussions')
     }
   }
 

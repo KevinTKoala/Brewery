@@ -51,6 +51,36 @@ export default function AddRoasteryPage() {
       return
     }
 
+    // Validate required fields
+    if (!name.trim()) {
+      setError("Roastery name is required")
+      return
+    }
+    if (!location.trim()) {
+      setError("Location is required")
+      return
+    }
+    if (!description.trim()) {
+      setError("Description is required")
+      return
+    }
+    if (description.length < 10) {
+      setError("Description must be at least 10 characters")
+      return
+    }
+
+    // Validate website URL if provided
+    if (website && !website.match(/^https?:\/\/.+/)) {
+      setError("Website must be a valid URL (starting with http:// or https://)")
+      return
+    }
+
+    // Validate Google Maps link if provided
+    if (googleMapsLink && !googleMapsLink.match(/^https?:\/\/.+/)) {
+      setError("Google Maps link must be a valid URL (starting with http:// or https://)")
+      return
+    }
+
     setSubmitting(true)
     setError("")
 

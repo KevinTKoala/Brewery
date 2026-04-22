@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { DatabaseDiscussion } from "@/types"
 import { useToast } from "@/lib/toast-context"
+import { logDeletionWithNotification } from "@/lib/deletion-utils"
 
 interface Discussion {
   id: string
@@ -31,9 +32,21 @@ interface Discussion {
 
 export default function AdminDiscussionsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [authTimeout, setAuthTimeout] = useState(false)
+
+  // Force render if auth takes too long
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth timeout - forcing render')
+        setAuthTimeout(true)
+      }
+    }, 3000) // 3 second timeout
+    return () => clearTimeout(timeout)
+  }, [authLoading])
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedDiscussion, setSelectedDiscussion] = useState<Discussion | null>(null)
@@ -50,39 +63,46 @@ export default function AdminDiscussionsPage() {
   })
 
   useEffect(() => {
+    if (authLoading) return
     if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
+      setLoading(false)
       router.push('/')
       return
     }
     fetchDiscussions()
-  }, [user, router])
+  }, [user, router, authLoading])
 
   const fetchDiscussions = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('discussions')
-      .select('*')
-      .order('created_at', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('discussions')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    if (data) {
-      setDiscussions(data.map((d: DatabaseDiscussion) => ({
-        id: d.id,
-        title: d.title,
-        content: d.content,
-        category: d.category,
-        tags: d.tags || [],
-        author: {
-          id: d.author_id,
-          name: d.author_id, // Will be updated with profile name
-        },
-        replyCount: d.reply_count,
-        viewCount: d.view_count,
-        likes: d.likes,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
-      })))
+      if (data) {
+        setDiscussions(data.map((d: DatabaseDiscussion) => ({
+          id: d.id,
+          title: d.title,
+          content: d.content,
+          category: d.category,
+          tags: d.tags || [],
+          author: {
+            id: d.author_id,
+            name: d.author_id, // Will be updated with profile name
+          },
+          replyCount: d.reply_count,
+          viewCount: d.view_count,
+          likes: d.likes,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+        })))
+      }
+    } catch (error) {
+      console.error('Failed to fetch discussions:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filteredDiscussions = discussions.filter(discussion =>
@@ -115,36 +135,31 @@ export default function AdminDiscussionsPage() {
       return
     }
 
-    // Log deletion
-    const { error: logError } = await supabase
-      .from('deletion_log')
-      .insert({
-        item_id: selectedDiscussionToDelete,
-        item_type: 'discussion',
-        deletion_reason: deletionReason.trim(),
-        deleted_by: user?.id,
-        original_title: discussionData.title,
-        original_content: discussionData.content,
-        author_id: discussionData.author_id
-      })
-
-    if (logError) {
-      toast('Failed to log deletion: ' + logError.message, 'error')
-      return
-    }
-
-    // Send notification to user
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: discussionData.author_id,
-        type: 'deletion',
+    // Log deletion and send notification
+    const { error: logError } = await logDeletionWithNotification(
+      {
+        itemId: selectedDiscussionToDelete,
+        itemType: 'discussion',
+        deletionReason: deletionReason.trim(),
+        deletedBy: user?.id,
+        originalTitle: discussionData.title,
+        originalContent: discussionData.content,
+        authorId: discussionData.author_id
+      },
+      {
+        userId: discussionData.author_id,
         title: 'Your discussion was deleted',
         message: `Your discussion "${discussionData.title}" has been deleted. Reason: ${deletionReason.trim()}`,
-        related_item_type: 'discussion',
-        related_item_id: selectedDiscussionToDelete,
-        deletion_reason: deletionReason.trim()
-      })
+        relatedItemType: 'discussion',
+        relatedItemId: selectedDiscussionToDelete,
+        deletionReason: deletionReason.trim()
+      }
+    )
+
+    if (logError) {
+      toast('Failed to log deletion: ' + logError, 'error')
+      return
+    }
 
     const { error } = await supabase
       .from('discussions')
@@ -198,7 +213,7 @@ export default function AdminDiscussionsPage() {
     setShowEditModal(true)
   }
 
-  if (loading) {
+  if (loading || (authLoading && !authTimeout)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p>Loading...</p>
@@ -253,24 +268,33 @@ export default function AdminDiscussionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDiscussions.map((discussion) => (
-                    <tr key={discussion.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                            <MessageSquare className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <span className="font-medium block">{discussion.title}</span>
-                            <span className="text-xs text-gray-500">{discussion.content.substring(0, 50)}...</span>
-                          </div>
-                        </div>
+                  {filteredDiscussions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-12 text-center">
+                        <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No discussions found</p>
+                        <p className="text-gray-400 text-sm mt-2">Try adjusting your search query</p>
                       </td>
-                      <td className="p-4">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                          {discussion.category}
-                        </span>
-                      </td>
+                    </tr>
+                  ) : (
+                    filteredDiscussions.map((discussion) => (
+                      <tr key={discussion.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                              <MessageSquare className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <span className="font-medium block">{discussion.title}</span>
+                              <span className="text-xs text-gray-500">{discussion.content.substring(0, 50)}...</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                            {discussion.category}
+                          </span>
+                        </td>
                       <td className="p-4 text-gray-600">{discussion.replyCount}</td>
                       <td className="p-4 text-gray-600">{discussion.viewCount}</td>
                       <td className="p-4">
@@ -308,7 +332,7 @@ export default function AdminDiscussionsPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

@@ -25,6 +25,7 @@ export default function NotificationsPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -42,7 +43,7 @@ export default function NotificationsPage() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching notifications:', error)
+      // Error fetching notifications
     } else {
       setNotifications(data || [])
     }
@@ -50,42 +51,57 @@ export default function NotificationsPage() {
   }
 
   const markAsRead = async (notificationId: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notificationId)
+    setActionLoading(notificationId)
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId)
 
-    if (error) {
-      console.error('Error marking notification as read:', error)
-    } else {
-      fetchNotifications()
+      if (error) {
+        // Error marking notification as read
+      } else {
+        fetchNotifications()
+      }
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const markAllAsRead = async () => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', user?.id)
-      .eq('is_read', false)
+    setActionLoading('mark-all')
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user?.id)
+        .eq('is_read', false)
 
-    if (error) {
-      console.error('Error marking all notifications as read:', error)
-    } else {
-      fetchNotifications()
+      if (error) {
+        // Error marking all notifications as read
+      } else {
+        fetchNotifications()
+      }
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const deleteNotification = async (notificationId: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .delete()
-      .eq('id', notificationId)
+    setActionLoading(notificationId)
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
 
-    if (error) {
-      console.error('Error deleting notification:', error)
-    } else {
-      fetchNotifications()
+      if (error) {
+        // Error deleting notification
+      } else {
+        fetchNotifications()
+      }
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -106,8 +122,20 @@ export default function NotificationsPage() {
               <Bell className="h-6 w-6" />
               <h1 className="text-2xl font-bold">Notifications</h1>
             </div>
-            <Button variant="outline" size="sm" onClick={markAllAsRead}>
-              Mark All as Read
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={markAllAsRead}
+              disabled={actionLoading === 'mark-all'}
+            >
+              {actionLoading === 'mark-all' ? (
+                <>
+                  <span className="h-4 w-4 mr-2 animate-spin">⏳</span>
+                  Marking...
+                </>
+              ) : (
+                'Mark All as Read'
+              )}
             </Button>
           </div>
         </div>
@@ -170,8 +198,17 @@ export default function NotificationsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex gap-2">
                       {!notification.is_read && (
-                        <Button variant="outline" size="sm" onClick={() => markAsRead(notification.id)}>
-                          <Check className="h-4 w-4 mr-2" />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => markAsRead(notification.id)}
+                          disabled={actionLoading === notification.id}
+                        >
+                          {actionLoading === notification.id ? (
+                            <span className="h-4 w-4 mr-2 animate-spin">⏳</span>
+                          ) : (
+                            <Check className="h-4 w-4 mr-2" />
+                          )}
                           Mark as Read
                         </Button>
                       )}
@@ -180,9 +217,14 @@ export default function NotificationsPage() {
                       variant="ghost" 
                       size="sm" 
                       onClick={() => deleteNotification(notification.id)}
+                      disabled={actionLoading === notification.id}
                       className="text-red-500 hover:text-red-700"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {actionLoading === notification.id ? (
+                        <span className="h-4 w-4 animate-spin">⏳</span>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </CardContent>

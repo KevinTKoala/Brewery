@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Star, MapPin, Clock, ChevronDown, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -16,8 +16,17 @@ export default function CafesPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null)
   const [minRating, setMinRating] = useState<number | null>(null)
+
+  // Debounce search query to improve performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
   const [sortBy, setSortBy] = useState<"newest" | "highest_rated" | "most_reviews">("newest")
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [cafes, setCafes] = useState<Cafe[]>([])
@@ -78,9 +87,9 @@ export default function CafesPage() {
   const filteredCafes = cafes
     .filter((cafe) => {
       const matchesSearch =
-        cafe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cafe.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cafe.description.toLowerCase().includes(searchQuery.toLowerCase())
+        cafe.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        cafe.location.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        cafe.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
 
       const matchesSpecialty =
         !selectedSpecialty || cafe.specialties.includes(selectedSpecialty)

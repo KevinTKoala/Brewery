@@ -167,6 +167,24 @@ export default function CafeDetailPage({ params }: { params: Promise<{ id: strin
       return
     }
 
+    // Validate required fields
+    if (!reviewTitle.trim()) {
+      setSubmitError("Review title is required")
+      return
+    }
+    if (reviewTitle.length < 5) {
+      setSubmitError("Review title must be at least 5 characters")
+      return
+    }
+    if (!reviewContent.trim()) {
+      setSubmitError("Review content is required")
+      return
+    }
+    if (reviewContent.length < 10) {
+      setSubmitError("Review content must be at least 10 characters")
+      return
+    }
+
     // Check for banned words in review title and content
     const titleBannedWords = getBannedWords(reviewTitle)
     const contentBannedWords = getBannedWords(reviewContent)

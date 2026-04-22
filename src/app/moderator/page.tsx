@@ -10,8 +10,20 @@ import { useAuth } from "@/lib/auth-context"
 
 export default function ModeratorDashboardPage() {
   const router = useRouter()
-  const { user } = useAuth()
-  const [loading, setLoading] = useState(true)
+  const { user, loading: authLoading } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [authTimeout, setAuthTimeout] = useState(false)
+
+  // Force render if auth takes too long
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth timeout - forcing render')
+        setAuthTimeout(true)
+      }
+    }, 3000) // 3 second timeout
+    return () => clearTimeout(timeout)
+  }, [authLoading])
   const [stats, setStats] = useState({
     totalDiscussions: 0,
     totalRoasteries: 0,
@@ -21,36 +33,44 @@ export default function ModeratorDashboardPage() {
   })
 
   useEffect(() => {
+    if (authLoading) return
     if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
+      setLoading(false)
       router.push('/')
       return
     }
     fetchStats()
-  }, [user, router])
+  }, [user, router, authLoading])
 
   const fetchStats = async () => {
     setLoading(true)
 
-    const [discussionsRes, roasteriesRes, cafesRes, repliesRes, productsRes] = await Promise.all([
-      supabase.from('discussions').select('id', { count: 'exact', head: true }),
-      supabase.from('roasteries').select('id', { count: 'exact', head: true }),
-      supabase.from('cafes').select('id', { count: 'exact', head: true }),
-      supabase.from('replies').select('id', { count: 'exact', head: true }),
-      supabase.from('coffee_products').select('id', { count: 'exact', head: true }),
-    ])
+    try {
+      const [discussionsRes, roasteriesRes, cafesRes, repliesRes, productsRes] = await Promise.all([
+        supabase.from('discussions').select('id', { count: 'exact', head: true }),
+        supabase.from('roasteries').select('id', { count: 'exact', head: true }),
+        supabase.from('cafes').select('id', { count: 'exact', head: true }),
+        supabase.from('replies').select('id', { count: 'exact', head: true }),
+        supabase.from('coffee_products').select('id', { count: 'exact', head: true }),
+      ])
 
-    setStats({
-      totalDiscussions: discussionsRes.count || 0,
-      totalRoasteries: roasteriesRes.count || 0,
-      totalCafes: cafesRes.count || 0,
-      totalReplies: repliesRes.count || 0,
-      totalProducts: productsRes.count || 0,
-    })
-
-    setLoading(false)
+      setStats({
+        totalDiscussions: discussionsRes.count || 0,
+        totalRoasteries: roasteriesRes.count || 0,
+        totalCafes: cafesRes.count || 0,
+        totalReplies: repliesRes.count || 0,
+        totalProducts: productsRes.count || 0,
+      })
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch stats'
+      // Log error but don't crash the UI
+      console.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (loading) {
+  if (loading || (authLoading && !authTimeout)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p>Loading...</p>

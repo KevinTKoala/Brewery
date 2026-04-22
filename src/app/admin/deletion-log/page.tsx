@@ -45,7 +45,6 @@ export default function DeletionLogPage() {
       .order('deleted_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching deletion logs:', error.message || error)
       // If table doesn't exist, just show empty state
       setDeletionLogs([])
     } else if (data) {

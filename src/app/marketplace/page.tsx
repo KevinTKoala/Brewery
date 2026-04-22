@@ -11,7 +11,7 @@ import Link from "next/link"
 
 export default function MarketplacePage() {
   const [products, setProducts] = useState<CoffeeProduct[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [showFilters, setShowFilters] = useState(false)
@@ -24,28 +24,33 @@ export default function MarketplacePage() {
 
   const fetchProducts = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('coffee_products')
-      .select('*')
-      .order('average_rating', { ascending: false })
+    try {
+      const { data } = await supabase
+        .from('coffee_products')
+        .select('*')
+        .order('average_rating', { ascending: false })
 
-    if (data) {
-      setProducts(data.map((p: DatabaseCoffeeProduct) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category as 'beans' | 'equipment' | 'accessories',
-        roasteryId: p.roastery_id,
-        price: p.price,
-        description: p.description,
-        images: p.images || [],
-        inStock: p.in_stock,
-        averageRating: p.average_rating || 0,
-        reviewCount: p.review_count || 0,
-        specifications: p.specifications,
-        externalLink: p.external_link,
-      })))
+      if (data) {
+        setProducts(data.map((p: DatabaseCoffeeProduct) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category as 'beans' | 'equipment' | 'accessories',
+          roasteryId: p.roastery_id,
+          price: p.price,
+          description: p.description,
+          images: p.images || [],
+          inStock: p.in_stock,
+          averageRating: p.average_rating || 0,
+          reviewCount: p.review_count || 0,
+          specifications: p.specifications,
+          externalLink: p.external_link,
+        })))
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filteredProducts = products.filter(product => {

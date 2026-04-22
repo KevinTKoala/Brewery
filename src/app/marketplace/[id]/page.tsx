@@ -76,7 +76,6 @@ export default function ProductDetailPage() {
       .order('created_at', { ascending: false })
 
     if (reviewsError) {
-      console.error('Error fetching reviews:', reviewsError)
       setReviewLoading(false)
       return
     }
@@ -124,7 +123,7 @@ export default function ProductDetailPage() {
       await navigator.share({
         title: product?.name,
         text: product?.description,
-        url: window.location.href,
+        url: typeof window !== 'undefined' ? window.location.href : '',
       })
     }
   }
@@ -133,6 +132,16 @@ export default function ProductDetailPage() {
     e.preventDefault()
     if (!user) {
       router.push("/login")
+      return
+    }
+
+    // Validate review comment
+    if (!reviewForm.comment.trim()) {
+      toast("Review comment is required", 'error')
+      return
+    }
+    if (reviewForm.comment.length < 10) {
+      toast("Review comment must be at least 10 characters", 'error')
       return
     }
 
@@ -156,7 +165,6 @@ export default function ProductDetailPage() {
       fetchReviews()
       fetchProduct() // Refresh product to get updated rating
     } catch (error: unknown) {
-      console.error('Review submission error:', error)
       const errorMessage = error instanceof Error ? error.message : "Failed to submit review"
       toast(errorMessage, 'error')
     } finally {

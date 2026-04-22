@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context"
 import { MultiImageUpload } from "@/components/multi-image-upload"
 import { DatabaseCafe, DatabaseReview } from "@/types"
 import { useToast } from "@/lib/toast-context"
+import { logDeletionWithNotification } from "@/lib/deletion-utils"
 
 interface Cafe {
   id: string
@@ -278,36 +279,31 @@ export default function AdminCafesPage() {
       return
     }
 
-    // Log deletion
-    const { error: logError } = await supabase
-      .from('deletion_log')
-      .insert({
-        item_id: selectedReviewToDelete,
-        item_type: 'review',
-        deletion_reason: deletionReason.trim(),
-        deleted_by: user?.id,
-        original_title: reviewData.title,
-        original_content: reviewData.content,
-        author_id: reviewData.user_id
-      })
-
-    if (logError) {
-      toast('Failed to log deletion: ' + logError.message, 'error')
-      return
-    }
-
-    // Send notification to user
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: reviewData.user_id,
-        type: 'deletion',
+    // Log deletion and send notification
+    const { error: logError } = await logDeletionWithNotification(
+      {
+        itemId: selectedReviewToDelete,
+        itemType: 'review',
+        deletionReason: deletionReason.trim(),
+        deletedBy: user?.id,
+        originalTitle: reviewData.title,
+        originalContent: reviewData.content,
+        authorId: reviewData.user_id
+      },
+      {
+        userId: reviewData.user_id,
         title: 'Your review was deleted',
         message: `Your review "${reviewData.title}" has been deleted. Reason: ${deletionReason.trim()}`,
-        related_item_type: 'review',
-        related_item_id: selectedReviewToDelete,
-        deletion_reason: deletionReason.trim()
-      })
+        relatedItemType: 'review',
+        relatedItemId: selectedReviewToDelete,
+        deletionReason: deletionReason.trim()
+      }
+    )
+
+    if (logError) {
+      toast('Failed to log deletion: ' + logError, 'error')
+      return
+    }
 
     const { error } = await supabase
       .from('reviews')
@@ -381,69 +377,79 @@ export default function AdminCafesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCafes.map((cafe) => (
-                    <tr key={cafe.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                            <Store className="h-5 w-5 text-orange-600" />
-                          </div>
-                          <div>
-                            <span className="font-medium block">{cafe.name}</span>
-                            <span className="text-xs text-gray-500">{cafe.specialties.slice(0, 2).join(', ')}{cafe.specialties.length > 2 ? '...' : ''}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          {cafe.location}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="font-medium">{cafe.rating.toFixed(1)}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-600">{cafe.reviewCount}</td>
-                      <td className="p-4 text-gray-600">
-                        {new Date(cafe.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openReviewsModal(cafe)}
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditModal(cafe)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/cafes/${cafe.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteCafe(cafe.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                  {filteredCafes.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center">
+                        <Store className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No cafes found</p>
+                        <p className="text-gray-400 text-sm mt-2">Try adjusting your search query</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredCafes.map((cafe) => (
+                      <tr key={cafe.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                              <Store className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                              <span className="font-medium block">{cafe.name}</span>
+                              <span className="text-xs text-gray-500">{cafe.specialties.slice(0, 2).join(', ')}{cafe.specialties.length > 2 ? '...' : ''}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            {cafe.location}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                            <span className="font-medium">{cafe.rating.toFixed(1)}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-gray-600">{cafe.reviewCount}</td>
+                        <td className="p-4 text-gray-600">
+                          {new Date(cafe.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openReviewsModal(cafe)}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(cafe)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/cafes/${cafe.id}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteCafe(cafe.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

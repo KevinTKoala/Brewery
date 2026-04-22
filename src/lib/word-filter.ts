@@ -1,22 +1,4 @@
-// List of inappropriate/banned words
-const BANNED_WORDS = [
-  // Profanity and offensive language
-  'bitch', 'bastard', 'crap',
-  'dick', 'piss', 'cock', 'pussy', 'whore', 'slut', 'fag', 'nigga',
-  'nigger', 'retard', 'idiot', 'stupid', 'dumbass', 'moron',
-  
-  // Hate speech and discriminatory terms
-  'hate', 'kill', 'die', 'racist', 'sexist', 'homophobic',
-  
-  // Threatening language
-  'threaten', 'threat', 'attack', 'harm', 'hurt', 'murder',
-  
-  // Sexual content
-  'porn', 'nude', 'naked', 'sex', 'xxx',
-  
-  // Other inappropriate content
-  'drugs', 'illegal', 'violence', 'weapon'
-]
+import { BANNED_WORDS } from '@/config/banned-words'
 
 /**
  * Check if text contains any banned words

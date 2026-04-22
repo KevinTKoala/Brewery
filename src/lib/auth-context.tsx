@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react"
 import { User } from "@/types"
 import { supabase } from "@/lib/supabase"
 import { Session, AuthError } from "@supabase/supabase-js"
@@ -18,45 +18,125 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const loadingSetRef = useRef(false)
 
   useEffect(() => {
-    // Check if user is logged in on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchProfile(session.user.id)
+    let mounted = true
+    let timeoutId: NodeJS.Timeout
+
+    const setLoadingFalse = () => {
+      if (!loadingSetRef.current && mounted) {
+        setLoading(false)
+        loadingSetRef.current = true
       }
-      setLoading(false)
-    })
+    }
+
+    // Check if user is logged in on mount
+    const initializeAuth = async () => {
+      try {
+        console.log('Auth: Initializing auth check...')
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('Auth: Session retrieved', session ? 'User logged in' : 'No session')
+
+        if (mounted) {
+          if (session?.user) {
+            console.log('Auth: Fetching profile for user', session.user.id)
+            await fetchProfile(session.user.id, session.user)
+          } else {
+            console.log('Auth: No user session, setting user to null')
+            setUser(null)
+          }
+
+          clearTimeout(timeoutId)
+          setLoadingFalse()
+          console.log('Auth: Initialization complete')
+        }
+      } catch (error) {
+        console.error('Auth: Error during initialization', error)
+        if (mounted) {
+          setUser(null)
+          clearTimeout(timeoutId)
+          setLoadingFalse()
+        }
+      }
+    }
+
+    initializeAuth()
+
+    // Set a timeout to prevent infinite loading - this is critical for mobile/ngrok
+    timeoutId = setTimeout(() => {
+      if (mounted && !loadingSetRef.current) {
+        console.warn('Auth initialization timeout - setting user to null')
+        setUser(null)
+        setLoadingFalse()
+      }
+    }, 2000) // 2 second timeout for faster fallback
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setUser(null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth: State changed', event, session ? 'Session exists' : 'No session')
+      if (mounted) {
+        if (session?.user) {
+          await fetchProfile(session.user.id, session.user)
+        } else {
+          setUser(null)
+        }
+        setLoadingFalse()
       }
-      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
   }, [])
 
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+  const fetchProfile = async (userId: string, sessionUser?: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
 
-    if (data) {
-      setUser({
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        avatar: data.avatar,
-        joinedAt: data.joined_at,
-        role: data.role || 'user'
-      })
+      if (error) {
+        // Fallback to session user data if profile fetch fails
+        if (sessionUser) {
+          setUser({
+            id: sessionUser.id,
+            name: sessionUser.user_metadata?.name || sessionUser.email?.split('@')[0] || 'User',
+            email: sessionUser.email,
+            avatar: sessionUser.user_metadata?.avatar_url,
+            joinedAt: sessionUser.created_at,
+            role: 'user'
+          })
+        }
+        return
+      }
+
+      if (data) {
+        setUser({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          avatar: data.avatar,
+          joinedAt: data.joined_at,
+          role: data.role || 'user'
+        })
+      }
+    } catch (err) {
+      // Fallback to session user data if profile fetch fails
+      if (sessionUser) {
+        setUser({
+          id: sessionUser.id,
+          name: sessionUser.user_metadata?.name || sessionUser.email?.split('@')[0] || 'User',
+          email: sessionUser.email,
+          avatar: sessionUser.user_metadata?.avatar_url,
+          joinedAt: sessionUser.created_at,
+          role: 'user'
+        })
+      }
     }
   }
 

@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import { DatabaseRoastery, DatabaseReview } from "@/types"
 import { useToast } from "@/lib/toast-context"
+import { logDeletionWithNotification } from "@/lib/deletion-utils"
 
 interface Roastery {
   id: string
@@ -168,7 +169,6 @@ export default function AdminRoasteriesPage() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching reviews:', error.message || error)
       toast('Failed to fetch reviews: ' + (error.message || 'Unknown error'), 'error')
       setReviews([])
     } else if (reviewsData) {
@@ -182,7 +182,7 @@ export default function AdminRoasteriesPage() {
           .in('id', userIds)
 
         if (profilesError) {
-          console.error('Error fetching profiles:', profilesError.message || profilesError)
+          // Error fetching profiles
         }
 
         profilesMap = new Map(profilesData?.map((p: { id: string; name?: string; avatar_url?: string }) => [p.id, p]) || [])
@@ -265,38 +265,29 @@ export default function AdminRoasteriesPage() {
     if (error) {
       toast('Failed to delete review: ' + error.message, 'error')
     } else {
-      // Log to deletion_log
-      const { error: logError } = await supabase
-        .from('deletion_log')
-        .insert({
-          item_type: 'review',
-          item_id: selectedReview.id,
-          deletion_reason: deletionReason,
-          deleted_by: user?.id,
-          original_title: selectedReview.title,
-          original_content: selectedReview.content,
-          author_id: selectedReview.user_id
-        })
-
-      if (logError) {
-        console.error('Failed to log deletion:', logError.message || logError)
-      }
-
-      // Send notification to user
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: selectedReview.user_id,
-          type: 'deletion',
+      // Log deletion and send notification
+      const { error: logError } = await logDeletionWithNotification(
+        {
+          itemId: selectedReview.id,
+          itemType: 'review',
+          deletionReason: deletionReason,
+          deletedBy: user?.id,
+          originalTitle: selectedReview.title,
+          originalContent: selectedReview.content,
+          authorId: selectedReview.user_id
+        },
+        {
+          userId: selectedReview.user_id,
           title: 'Your review has been deleted',
           message: `Your review "${selectedReview.title}" for ${selectedRoastery?.name || 'a roastery'} has been deleted. Reason: ${deletionReason}`,
-          related_item_id: selectedReview.id,
-          related_item_type: 'review',
-          deletion_reason: deletionReason
-        })
+          relatedItemId: selectedReview.id,
+          relatedItemType: 'review',
+          deletionReason: deletionReason
+        }
+      )
 
-      if (notificationError) {
-        console.error('Failed to send notification:', notificationError.message || notificationError)
+      if (logError) {
+        // Failed to log deletion
       }
 
       setShowDeleteReviewModal(false)
@@ -363,70 +354,80 @@ export default function AdminRoasteriesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRoasteries.map((roastery) => (
-                    <tr key={roastery.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                            <Coffee className="h-5 w-5 text-amber-600" />
-                          </div>
-                          <div>
-                            <span className="font-medium block">{roastery.name}</span>
-                            <span className="text-xs text-gray-500">{roastery.specialties.slice(0, 2).join(', ')}{roastery.specialties.length > 2 ? '...' : ''}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          {roastery.location}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="font-medium">{roastery.rating.toFixed(1)}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-600">{roastery.reviewCount}</td>
-                      <td className="p-4 text-gray-600">
-                        {new Date(roastery.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditModal(roastery)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/roasteries/${roastery.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewReviews(roastery)}
-                            title="View Reviews"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteRoastery(roastery.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                  {filteredRoasteries.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center">
+                        <Coffee className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No roasteries found</p>
+                        <p className="text-gray-400 text-sm mt-2">Try adjusting your search query</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredRoasteries.map((roastery) => (
+                      <tr key={roastery.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                              <Coffee className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <span className="font-medium block">{roastery.name}</span>
+                              <span className="text-xs text-gray-500">{roastery.specialties.slice(0, 2).join(', ')}{roastery.specialties.length > 2 ? '...' : ''}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            {roastery.location}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                            <span className="font-medium">{roastery.rating.toFixed(1)}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-gray-600">{roastery.reviewCount}</td>
+                        <td className="p-4 text-gray-600">
+                          {new Date(roastery.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(roastery)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/roasteries/${roastery.id}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewReviews(roastery)}
+                              title="View Reviews"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRoastery(roastery.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -51,6 +51,30 @@ export default function AddCafePage() {
       return
     }
 
+    // Validate required fields
+    if (!name.trim()) {
+      setError("Cafe name is required")
+      return
+    }
+    if (!location.trim()) {
+      setError("Location is required")
+      return
+    }
+    if (!description.trim()) {
+      setError("Description is required")
+      return
+    }
+    if (description.length < 10) {
+      setError("Description must be at least 10 characters")
+      return
+    }
+
+    // Validate website URL if provided
+    if (website && !website.match(/^https?:\/\/.+/)) {
+      setError("Website must be a valid URL (starting with http:// or https://)")
+      return
+    }
+
     setSubmitting(true)
     setError("")
 

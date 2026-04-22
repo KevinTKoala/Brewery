@@ -29,11 +29,26 @@ export default function SignupPage() {
     e.preventDefault()
     setError("")
 
+    // Validate name length
+    if (name.length < 2) {
+      setError("Name must be at least 2 characters")
+      return
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address")
+      return
+    }
+
+    // Validate password match
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       return
     }
 
+    // Validate password length
     if (password.length < 6) {
       setError("Password must be at least 6 characters")
       return

@@ -13,6 +13,7 @@ import { Roastery, Review, DatabaseRoastery, DatabaseReview } from "@/types"
 import { ImageUpload } from "@/components/image-upload"
 import { containsBannedWords, getBannedWords } from "@/lib/word-filter"
 import { useToast } from "@/lib/toast-context"
+import { logDeletionWithNotification } from "@/lib/deletion-utils"
 
 export default function RoasteryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params)
@@ -130,6 +131,24 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
       return
     }
 
+    // Validate required fields
+    if (!reviewTitle.trim()) {
+      setSubmitError("Review title is required")
+      return
+    }
+    if (reviewTitle.length < 5) {
+      setSubmitError("Review title must be at least 5 characters")
+      return
+    }
+    if (!reviewContent.trim()) {
+      setSubmitError("Review content is required")
+      return
+    }
+    if (reviewContent.length < 10) {
+      setSubmitError("Review content must be at least 10 characters")
+      return
+    }
+
     // Check for banned words in review title and content
     const titleBannedWords = getBannedWords(reviewTitle)
     const contentBannedWords = getBannedWords(reviewContent)
@@ -220,38 +239,29 @@ export default function RoasteryDetailPage({ params }: { params: Promise<{ id: s
     if (error) {
       toast('Failed to delete review: ' + error.message, 'error')
     } else {
-      // Log to deletion_log
-      const { error: logError } = await supabase
-        .from('deletion_log')
-        .insert({
-          item_type: 'review',
-          item_id: selectedReview.id,
-          deletion_reason: deletionReason,
-          deleted_by: user?.id,
-          original_title: selectedReview.title,
-          original_content: selectedReview.content,
-          author_id: selectedReview.userId
-        })
-
-      if (logError) {
-        console.error('Failed to log deletion:', logError.message || logError)
-      }
-
-      // Send notification to user
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: selectedReview.userId,
-          type: 'deletion',
+      // Log deletion and send notification
+      const { error: logError } = await logDeletionWithNotification(
+        {
+          itemId: selectedReview.id,
+          itemType: 'review',
+          deletionReason: deletionReason,
+          deletedBy: user?.id,
+          originalTitle: selectedReview.title,
+          originalContent: selectedReview.content,
+          authorId: selectedReview.userId
+        },
+        {
+          userId: selectedReview.userId,
           title: 'Your review has been deleted',
           message: `Your review "${selectedReview.title}" for ${roastery?.name || 'a roastery'} has been deleted. Reason: ${deletionReason}`,
-          related_item_id: selectedReview.id,
-          related_item_type: 'review',
-          deletion_reason: deletionReason
-        })
+          relatedItemId: selectedReview.id,
+          relatedItemType: 'review',
+          deletionReason: deletionReason
+        }
+      )
 
-      if (notificationError) {
-        console.error('Failed to send notification:', notificationError.message || notificationError)
+      if (logError) {
+        // Failed to log deletion
       }
 
       setShowDeleteReviewModal(false)

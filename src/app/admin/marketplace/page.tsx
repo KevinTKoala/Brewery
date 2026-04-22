@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context"
 import { MultiImageUpload } from "@/components/multi-image-upload"
 import { DatabaseCoffeeProduct, DatabaseProductReview } from "@/types"
 import { useToast } from "@/lib/toast-context"
+import { logDeletionWithNotification } from "@/lib/deletion-utils"
 
 interface Product {
   id: string
@@ -28,9 +29,21 @@ interface Product {
 
 export default function AdminMarketplacePage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [authTimeout, setAuthTimeout] = useState(false)
+
+  // Force render if auth takes too long
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth timeout - forcing render')
+        setAuthTimeout(true)
+      }
+    }, 3000) // 3 second timeout
+    return () => clearTimeout(timeout)
+  }, [authLoading])
   const [products, setProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
@@ -68,36 +81,43 @@ export default function AdminMarketplacePage() {
   })
 
   useEffect(() => {
+    if (authLoading) return
     if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
+      setLoading(false)
       router.push('/')
       return
     }
     fetchProducts()
-  }, [user, router])
+  }, [user, router, authLoading])
 
   const fetchProducts = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('coffee_products')
-      .select('*')
-      .order('created_at', { ascending: false })
+    try {
+      const { data } = await supabase
+        .from('coffee_products')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    if (data) {
-      setProducts(data.map((p: DatabaseCoffeeProduct) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        price: p.price,
-        inStock: p.in_stock,
-        averageRating: p.average_rating || 0,
-        reviewCount: p.review_count || 0,
-        images: p.images || [],
-        externalLink: p.external_link,
-        description: p.description,
-        specifications: p.specifications,
-      })))
+      if (data) {
+        setProducts(data.map((p: DatabaseCoffeeProduct) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          inStock: p.in_stock,
+          averageRating: p.average_rating || 0,
+          reviewCount: p.review_count || 0,
+          images: p.images || [],
+          externalLink: p.external_link,
+          description: p.description,
+          specifications: p.specifications,
+        })))
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filteredProducts = products.filter(product => {
@@ -150,7 +170,6 @@ export default function AdminMarketplacePage() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching reviews:', error)
       setReviews([])
     } else if (reviewsData) {
       const userIds = [...new Set(reviewsData.map((r: DatabaseProductReview) => r.user_id))]
@@ -231,39 +250,29 @@ export default function AdminMarketplacePage() {
       return
     }
 
-    // Log to deletion_log
-    const { error: logError } = await supabase
-      .from('deletion_log')
-      .insert({
-        item_id: selectedReview.id,
-        item_type: 'review',
-        deletion_reason: deletionReason,
-        deleted_by: user.id,
-        original_title: `Product Review - Rating: ${reviewData.rating}`,
-        original_content: reviewData.comment,
-        author_id: reviewData.user_id
-      })
-
-    if (logError) {
-      console.error('Error logging deletion:', logError)
-    }
-
-    // Send notification to user
-    const { error: notificationError } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: reviewData.user_id,
-        type: 'deletion',
+    // Log deletion and send notification
+    const { error: logError } = await logDeletionWithNotification(
+      {
+        itemId: selectedReview.id,
+        itemType: 'review',
+        deletionReason: deletionReason,
+        deletedBy: user.id,
+        originalTitle: `Product Review - Rating: ${reviewData.rating}`,
+        originalContent: reviewData.comment,
+        authorId: reviewData.user_id
+      },
+      {
+        userId: reviewData.user_id,
         title: 'Your product review was deleted',
         message: `Your review for the product has been deleted by an administrator. Reason: ${deletionReason}`,
-        related_item_type: 'review',
-        related_item_id: selectedReview.id,
-        deletion_reason: deletionReason
-      })
+        relatedItemType: 'review',
+        relatedItemId: selectedReview.id,
+        deletionReason: deletionReason
+      }
+    )
 
-    if (notificationError) {
-      console.error('Error sending notification:', notificationError.message || notificationError)
-      // Continue with deletion even if notification fails
+    if (logError) {
+      // Error logging deletion
     }
 
     // Delete the review
@@ -290,14 +299,11 @@ export default function AdminMarketplacePage() {
     setSubmitting(true)
     setSubmitError("")
 
-    console.log('Submitting product data:', formData)
-    console.log('Images being saved:', formData.images)
 
     try {
       if (editingProduct) {
         // Update existing product
-        console.log('Updating product with ID:', editingProduct.id)
-        const { error } = await supabase
+          const { error } = await supabase
           .from('coffee_products')
           .update({
             name: formData.name,
@@ -314,11 +320,10 @@ export default function AdminMarketplacePage() {
           .eq('id', editingProduct.id)
 
         if (error) {
-          console.error('Update error:', error)
+          // Update error
           throw error
         }
-        console.log('Product updated successfully')
-      } else {
+        } else {
         // Add new product
         const { error } = await supabase
           .from('coffee_products')
@@ -352,7 +357,7 @@ export default function AdminMarketplacePage() {
       })
       fetchProducts()
     } catch (error: unknown) {
-      console.error('Submit error:', error)
+      // Submit error
       const errorMessage = error instanceof Error ? error.message : "Failed to save product"
       setSubmitError(errorMessage)
     } finally {
@@ -378,7 +383,7 @@ export default function AdminMarketplacePage() {
     setSubmitError("")
   }
 
-  if (loading) {
+  if (loading || (authLoading && !authTimeout)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p>Loading...</p>
@@ -451,46 +456,55 @@ export default function AdminMarketplacePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => (
-                    <tr key={product.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          {product.images && product.images.length > 0 ? (
-                            <img
-                              src={product.images[0]}
-                              alt={product.name}
-                              className="w-12 h-12 rounded object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center">
-                              <ShoppingBag className="h-5 w-5 text-gray-400" />
-                            </div>
-                          )}
-                          <span className="font-medium">{product.name}</span>
-                        </div>
+                  {filteredProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-12 text-center">
+                        <ShoppingBag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No products found</p>
+                        <p className="text-gray-400 text-sm mt-2">Try adjusting your search query</p>
                       </td>
-                      <td className="p-4 text-gray-600 capitalize">{product.category}</td>
-                      <td className="p-4 text-gray-600">${product.price.toFixed(2)}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          product.inStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {product.inStock ? 'In Stock' : 'Out of Stock'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        {product.averageRating > 0 ? (
-                          <div className="flex items-center">
-                            <span className="mr-1">{product.averageRating.toFixed(1)}</span>
-                            <span className="text-gray-400">({product.reviewCount})</span>
+                    </tr>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <tr key={product.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            {product.images && product.images.length > 0 ? (
+                              <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="w-12 h-12 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center">
+                                <ShoppingBag className="h-5 w-5 text-gray-400" />
+                              </div>
+                            )}
+                            <span className="font-medium">{product.name}</span>
                           </div>
-                        ) : (
-                          <span className="text-gray-400">No ratings</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
+                        </td>
+                        <td className="p-4 text-gray-600 capitalize">{product.category}</td>
+                        <td className="p-4 text-gray-600">${product.price.toFixed(2)}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            product.inStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {product.inStock ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-600">
+                          {product.averageRating > 0 ? (
+                            <div className="flex items-center">
+                              <span className="mr-1">{product.averageRating.toFixed(1)}</span>
+                              <span className="text-gray-400">({product.reviewCount})</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">No ratings</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleViewReviews(product)}
@@ -525,7 +539,7 @@ export default function AdminMarketplacePage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>
